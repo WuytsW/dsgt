@@ -1,6 +1,6 @@
-package be.kuleuven.broker.controllers;
+package be.kuleuven.broker.controller;
 
-import be.kuleuven.broker.domain.BasketRepository;
+import be.kuleuven.broker.repository.BasketRepository;
 import be.kuleuven.broker.model.BasketItem;
 import org.springframework.web.bind.annotation.*;
 

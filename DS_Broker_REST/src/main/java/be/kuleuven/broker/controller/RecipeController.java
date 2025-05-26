@@ -1,6 +1,6 @@
-package be.kuleuven.broker.controllers;
+package be.kuleuven.broker.controller;
 
-import be.kuleuven.broker.domain.RecipeRepository;
+import be.kuleuven.broker.repository.RecipeRepository;
 import be.kuleuven.broker.model.Recipe;
 import org.springframework.web.bind.annotation.*;
 

@@ -1,4 +1,4 @@
-package be.kuleuven.broker.controllers;
+package be.kuleuven.broker.controller;
 
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.PostMapping;

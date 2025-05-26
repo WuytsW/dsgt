@@ -1,6 +1,6 @@
-package be.kuleuven.broker.controllers;
+package be.kuleuven.broker.controller;
 
-import be.kuleuven.broker.domain.UserRepository;
+import be.kuleuven.broker.repository.UserRepository;
 import be.kuleuven.broker.model.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

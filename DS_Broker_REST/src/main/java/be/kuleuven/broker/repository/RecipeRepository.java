@@ -1,4 +1,4 @@
-package be.kuleuven.broker.domain;
+package be.kuleuven.broker.repository;
 
 import be.kuleuven.broker.model.Recipe;
 import org.springframework.stereotype.Repository;
