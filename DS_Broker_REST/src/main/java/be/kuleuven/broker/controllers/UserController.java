@@ -1,6 +1,6 @@
 package be.kuleuven.broker.controllers;
 
-import be.kuleuven.broker.domain.UserService;
+import be.kuleuven.broker.domain.UserRepository;
 import be.kuleuven.broker.model.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -12,30 +12,30 @@ import java.util.Collection;
 @RequestMapping("/users")
 public class UserController {
 
-    private final UserService userService;
+    private final UserRepository userRepository;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
+    public UserController(UserRepository userRepository) {
+        this.userRepository = userRepository;
     }
 
     @GetMapping
     public Collection<User> getAllUsers() {
-        return userService.getAllUsers();
+        return userRepository.findAll();
     }
 
     @GetMapping("/{id}")
     public User getUserById(@PathVariable String id) {
-        return userService.getUserById(id);
+        return userRepository.findById(id);
     }
 
     @PostMapping
     public void registerUser(@RequestBody User user) {
-        userService.register(user.getUsername(), user.getPassword());
+        userRepository.register(user.getUsername(), user.getPassword());
     }
 
     @PostMapping("/login")
     public User login(@RequestBody User user) {
-        User found = userService.getUserByUsername(user.getUsername());
+        User found = userRepository.findByUsername(user.getUsername());
         if (found == null) {
             // Username not found → use 404 for better frontend handling
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");

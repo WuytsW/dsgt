@@ -13,14 +13,34 @@ public class BasketRepository {
         return baskets.getOrDefault(userId, new ArrayList<>());
     }
 
-    public void addItem(String userId, BasketItem item) {
-        baskets.computeIfAbsent(userId, k -> new ArrayList<>()).add(item);
+    public void addItem(String userId, BasketItem newItem) {
+        List<BasketItem> basket = baskets.computeIfAbsent(userId, k -> new ArrayList<>());
+
+        for (BasketItem item : basket) {
+            if (item.getRecipeId().equals(newItem.getRecipeId())) {
+                item.setQuantity(item.getQuantity() + newItem.getQuantity());
+                return;
+            }
+        }
+
+        basket.add(newItem);
     }
 
-    public void removeItem(String userId, BasketItem item) {
+
+    public void removeItem(String userId, BasketItem oldItem) {
         List<BasketItem> basket = baskets.get(userId);
         if (basket != null) {
-            basket.removeIf(i -> i.getRecipeId().equals(item.getRecipeId()));
+            for (int i = 0; i < basket.size(); i++) {
+                BasketItem item = basket.get(i);
+                if (item.getRecipeId().equals(oldItem.getRecipeId())) {
+                    if (item.getQuantity() > 1) {
+                        item.setQuantity(item.getQuantity() - 1);
+                    } else {
+                        basket.remove(i);
+                    }
+                    break;
+                }
+            }
         }
     }
 }

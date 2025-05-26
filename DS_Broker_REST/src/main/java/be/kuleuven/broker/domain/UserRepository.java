@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Repository
 public class UserRepository {
@@ -13,6 +14,11 @@ public class UserRepository {
 
     public void save(User user) {
         usersById.put(user.getId(), user);
+    }
+
+    public void register(String username, String password) {
+        String id = UUID.randomUUID().toString();
+        save(new User(id, username, password));
     }
 
     public User findById(String id) {
