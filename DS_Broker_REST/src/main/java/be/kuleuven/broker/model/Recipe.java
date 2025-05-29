@@ -1,34 +1,74 @@
 package be.kuleuven.broker.model;
 
+import javax.persistence.*;
+import java.util.ArrayList;
 import java.util.List;
 
+@Entity
+@Table(name = "recipes")
 public class Recipe {
-    private String id;
-    private String name;
-    private String description;
-    private String imageUrl;
-    private List<String> ingredients;
 
-    public Recipe(String id, String name, String description, String imageUrl, List<String> ingredients) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.imageUrl = imageUrl;
-        this.ingredients = ingredients;
-    }
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    private String recipe;
+
+    private String image;
+
+    private String description;
+
+    @OneToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "ingredient_in_recipe",
+            joinColumns = @JoinColumn(name = "recipeid"),
+            inverseJoinColumns = @JoinColumn(name = "ingredientid")
+    )
+    private List<Ingredient> ingredients = new ArrayList<>();
+
 
     public Recipe() {}
 
-    public String getId() { return id; }
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public String getImageUrl() { return imageUrl; }
-    public List<String> getIngredients() { return ingredients; }
+    public Integer getId() {
+        return id;
+    }
 
-    public void setId(String id) { this.id = id; }
-    public void setName(String name) { this.name = name; }
-    public void setDescription(String description) { this.description = description; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-    public void setIngredients(List<String> ingredients) { this.ingredients = ingredients; }
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getRecipe() {
+        return recipe;
+    }
+
+    public void setRecipe(String recipe) {
+        this.recipe = recipe;
+    }
+
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public List<Ingredient> getIngredients() {
+        return ingredients;
+    }
+
+    public void setIngredients(List<Ingredient> ingredients) {
+        this.ingredients = ingredients;
+    }
 }
+
+
 

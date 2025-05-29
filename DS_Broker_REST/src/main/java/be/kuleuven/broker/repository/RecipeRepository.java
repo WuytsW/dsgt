@@ -1,51 +1,20 @@
 package be.kuleuven.broker.repository;
 
 import be.kuleuven.broker.model.Recipe;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import javax.annotation.PostConstruct;
-import org.springframework.web.client.RestTemplate;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
-import java.util.*;
+import java.util.List;
 
 @Repository
-public class RecipeRepository {
+public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
 
-    private final Map<String, Recipe> recipes = new HashMap<>();
+    @Query("SELECT DISTINCT r FROM Recipe r JOIN FETCH r.ingredients")
+    List<Recipe> findAllWithIngredients();
 
-    @PostConstruct
-    public void initData() {
-        String url = "https://www.themealdb.com/api/json/v1/1/search.php?s=";
-        String response = new RestTemplate().getForObject(url, String.class);
-        JSONObject json = new JSONObject(response);
-        JSONArray meals = json.getJSONArray("meals");
-
-        for (int i = 0; i < meals.length(); i++) {
-            JSONObject meal = meals.getJSONObject(i);
-            String id = meal.getString("idMeal");
-            String name = meal.getString("strMeal");
-            String description = meal.optString("strInstructions", "");
-            String imageUrl = meal.getString("strMealThumb");
-
-            List<String> ingredients = new ArrayList<>();
-            for (int j = 1; j <= 20; j++) {
-                String ingredient = meal.optString("strIngredient" + j);
-                if (ingredient != null && !ingredient.isBlank()) {
-                    ingredients.add(ingredient);
-                }
-            }
-
-            recipes.put(id, new Recipe(id, name, description, imageUrl, ingredients));
-        }
-    }
-
-    public Collection<Recipe> getAllRecipes() {
-        return recipes.values();
-    }
-
-    public Recipe getRecipe(String id) {
-        return recipes.get(id);
-    }
+    @Query("SELECT r FROM Recipe r JOIN FETCH r.ingredients WHERE r.id = :id")
+    Recipe findByIdWithIngredients(@Param("id") Integer id);
 }
 
