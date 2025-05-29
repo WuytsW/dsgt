@@ -11,7 +11,6 @@ public interface BasketRepository extends JpaRepository<Basket, Integer> {
     List<Basket> findByUserId(int userId);
     void deleteByUserId(int userId);
     Basket findByUserIdAndRecipeId(int userId, int recipeId);
-
 }
 
 

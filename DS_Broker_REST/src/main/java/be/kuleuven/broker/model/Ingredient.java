@@ -12,6 +12,8 @@ public class Ingredient {
 
     private String ingredient;
 
+    private Integer supplierid;
+
     public Ingredient() {}
 
     public Integer getId() {
@@ -28,6 +30,14 @@ public class Ingredient {
 
     public void setIngredient(String ingredient) {
         this.ingredient = ingredient;
+    }
+
+    public Integer getSupplierId() {
+        return supplierid;
+    }
+
+    public void setSupplierId(Integer suplierid) {
+        this.supplierid = suplierid;
     }
 }
 

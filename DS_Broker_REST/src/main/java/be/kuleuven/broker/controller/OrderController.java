@@ -1,36 +1,94 @@
 package be.kuleuven.broker.controller;
 
-import org.springframework.http.*;
+import be.kuleuven.broker.model.Basket;
+import be.kuleuven.broker.model.Ingredient;
+import be.kuleuven.broker.model.Recipe;
+import be.kuleuven.broker.model.Supplier;
+import be.kuleuven.broker.repository.BasketRepository;
+import be.kuleuven.broker.repository.IngredientRepository;
+import be.kuleuven.broker.repository.SupplierRepository;
+import be.kuleuven.broker.repository.RecipeRepository;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/order")
 public class OrderController {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final BasketRepository basketRepository;
+    private final IngredientRepository ingredientRepository;
+    private final SupplierRepository supplierRepository;
+    private final RecipeRepository recipeRepository;
+
+    public OrderController(BasketRepository basketRepository,
+                           IngredientRepository ingredientRepository,
+                           SupplierRepository supplierRepository, RecipeRepository recipeRepository) {
+        this.basketRepository = basketRepository;
+        this.ingredientRepository = ingredientRepository;
+        this.supplierRepository = supplierRepository;
+        this.recipeRepository = recipeRepository;
+    }
 
     @PostMapping
-    public ResponseEntity<String> checkAvailabilityAndOrder() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+    public ResponseEntity<?> checkAvailabilityAndOrder() {
+        // 1. Fetch all basket items for all users or a specific user (depends on your logic)
+        List<Basket> basketItems = basketRepository.findAll(); // Or findByUserId(userId)
 
-        HttpEntity<String> request = new HttpEntity<>(headers);
+        // 2. Aggregate ingredients needed with their total quantities
+        // Map<IngredientId, totalQuantity>
+        Map<Integer, Integer> ingredientQuantities = new HashMap<>();
 
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    "http://dsgt.japaneast.cloudapp.azure.com:8080/rest/meals",
-                    HttpMethod.GET,
-                    request,
-                    String.class
-            );
-            return ResponseEntity.ok(response.getBody());
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Error fetching meals: " + e.getMessage());
+        for (Basket basket : basketItems) {
+            int recipeId = basket.getRecipeId();
+            int quantity = basket.getQuantity();
+
+            Recipe recipe = recipeRepository.findByIdWithIngredients(recipeId);
+
+            // Fetch ingredients for this recipe
+            List<Ingredient> ingredients = recipe.getIngredients();
+
+            for (Ingredient ingredient : ingredients) {
+                ingredientQuantities.merge(ingredient.getId(), quantity, Integer::sum);
+            }
         }
+
+        // 3. Group ingredients by supplier
+        // Map<Supplier, List<Ingredient and Quantity>>
+        Map<Supplier, List<Map<String, Object>>> supplierIngredientsMap = new HashMap<>();
+
+        for (Map.Entry<Integer, Integer> entry : ingredientQuantities.entrySet()) {
+            int ingredientId = entry.getKey();
+            int totalQuantity = entry.getValue();
+
+            Ingredient ingredient = ingredientRepository.findById(ingredientId).orElse(null);
+            if (ingredient == null) continue;
+
+            Supplier supplier = supplierRepository.findById(ingredient.getSupplierId()).orElse(null);
+            if (supplier == null) continue;
+
+            supplierIngredientsMap.computeIfAbsent(supplier, k -> new ArrayList<>())
+                    .add(Map.of(
+                            "ingredientId", ingredient.getId(),
+                            "ingredientName", ingredient.getIngredient(),
+                            "quantity", totalQuantity
+                    ));
+        }
+
+        // 4. Prepare response JSON structure
+        List<Map<String, Object>> responseList = supplierIngredientsMap.entrySet().stream()
+                .map(e -> Map.of(
+                        "supplierId", e.getKey().getId(),
+                        "supplierName", e.getKey().getName(),
+                        "ingredients", e.getValue()
+                ))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(responseList);
     }
 }
+
