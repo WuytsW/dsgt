@@ -13,8 +13,11 @@ import java.util.Optional;
 @RequestMapping("/basket")
 public class BasketController {
 
-    @Autowired
-    private BasketRepository basketRepository;
+    private final BasketRepository basketRepository;
+
+    public BasketController(BasketRepository basketRepository) {
+        this.basketRepository = basketRepository;
+    }
 
     @GetMapping("/{userId}")
     public List<Basket> getBasketByUserId(@PathVariable int userId) {

@@ -14,8 +14,11 @@ import java.util.Optional;
 @RequestMapping("/recipes")
 public class RecipeController {
 
-    @Autowired
-    private RecipeRepository recipeRepository;
+    private final RecipeRepository recipeRepository;
+
+    public RecipeController(RecipeRepository recipeRepository) {
+        this.recipeRepository = recipeRepository;
+    }
 
 
     @GetMapping

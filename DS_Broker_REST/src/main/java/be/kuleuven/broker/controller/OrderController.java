@@ -22,14 +22,17 @@ import java.util.stream.Collectors;
 @RequestMapping("/order")
 public class OrderController {
 
-    @Autowired
-    private BasketRepository basketRepository;
-    @Autowired
-    private IngredientRepository ingredientRepository;
-    @Autowired
-    private SupplierRepository supplierRepository;
-    @Autowired
-    private RecipeRepository recipeRepository;
+    private final BasketRepository basketRepository;
+    private final IngredientRepository ingredientRepository;
+    private final SupplierRepository supplierRepository;
+    private final RecipeRepository recipeRepository;
+
+    public OrderController(BasketRepository basketRepository, IngredientRepository ingredientRepository, SupplierRepository supplierRepository, RecipeRepository recipeRepository) {
+        this.basketRepository = basketRepository;
+        this.ingredientRepository = ingredientRepository;
+        this.supplierRepository = supplierRepository;
+        this.recipeRepository = recipeRepository;
+    }
 
 
     /*

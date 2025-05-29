@@ -15,9 +15,12 @@ import java.util.List;
 @RequestMapping("/users")
 public class UserController {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
     private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    public UserController(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
 
     @GetMapping
