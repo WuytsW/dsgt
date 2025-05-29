@@ -55,12 +55,19 @@ public class OrderController {
             int quantity = basket.getQuantity();
 
             Recipe recipe = recipeRepository.findByIdWithIngredients(recipeId);
+            if (recipe == null) {
+                continue;
+            }
+
 
             // Fetch ingredients for this recipe
             List<Ingredient> ingredients = recipe.getIngredients();
 
+
             for (Ingredient ingredient : ingredients) {
-                ingredientQuantities.merge(ingredient.getId(), quantity, Integer::sum);
+                Integer id = ingredient.getId();
+                if (id == null) continue; // Skip ingredients without ID
+                ingredientQuantities.merge(id, quantity, Integer::sum);
             }
         }
 
@@ -69,9 +76,10 @@ public class OrderController {
         Map<Supplier, List<Map<String, Object>>> supplierIngredientsMap = new HashMap<>();
 
         for (Map.Entry<Integer, Integer> entry : ingredientQuantities.entrySet()) {
-            int ingredientId = entry.getKey();
-            int totalQuantity = entry.getValue();
+            Integer ingredientId = entry.getKey();
+            if (ingredientId == null) continue;
 
+            int totalQuantity = entry.getValue();
             Ingredient ingredient = ingredientRepository.findById(ingredientId).orElse(null);
             if (ingredient == null) continue;
 
