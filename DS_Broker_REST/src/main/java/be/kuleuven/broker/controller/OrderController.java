@@ -8,7 +8,9 @@ import be.kuleuven.broker.repository.BasketRepository;
 import be.kuleuven.broker.repository.IngredientRepository;
 import be.kuleuven.broker.repository.SupplierRepository;
 import be.kuleuven.broker.repository.RecipeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,24 +22,26 @@ import java.util.stream.Collectors;
 @RequestMapping("/order")
 public class OrderController {
 
-    private final BasketRepository basketRepository;
-    private final IngredientRepository ingredientRepository;
-    private final SupplierRepository supplierRepository;
-    private final RecipeRepository recipeRepository;
+    @Autowired
+    private BasketRepository basketRepository;
+    @Autowired
+    private IngredientRepository ingredientRepository;
+    @Autowired
+    private SupplierRepository supplierRepository;
+    @Autowired
+    private RecipeRepository recipeRepository;
 
-    public OrderController(BasketRepository basketRepository,
-                           IngredientRepository ingredientRepository,
-                           SupplierRepository supplierRepository, RecipeRepository recipeRepository) {
-        this.basketRepository = basketRepository;
-        this.ingredientRepository = ingredientRepository;
-        this.supplierRepository = supplierRepository;
-        this.recipeRepository = recipeRepository;
-    }
 
-    @PostMapping
-    public ResponseEntity<?> checkAvailabilityAndOrder() {
-        // 1. Fetch all basket items for all users or a specific user (depends on your logic)
-        List<Basket> basketItems = basketRepository.findAll(); // Or findByUserId(userId)
+    /*
+        This needs to implemented when the suppliers are set up.
+        For now it just returns a JSON with the ingredients grouped by supplier as a placeholder
+     */
+
+
+    @PostMapping("/{userId}")
+    public ResponseEntity<?> checkAvailabilityAndOrder(@PathVariable int userId) {
+        // 1. Fetch all basket items for a specific user
+        List<Basket> basketItems = basketRepository.findByUserId(userId);
 
         // 2. Aggregate ingredients needed with their total quantities
         // Map<IngredientId, totalQuantity>
@@ -91,4 +95,3 @@ public class OrderController {
         return ResponseEntity.ok(responseList);
     }
 }
-
