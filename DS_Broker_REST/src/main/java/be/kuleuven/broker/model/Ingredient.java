@@ -12,32 +12,25 @@ public class Ingredient {
 
     private String ingredient;
 
-    private Integer supplierid;
+    private Integer supplierId;
+
 
     public Ingredient() {}
 
     public Integer getId() {
         return id;
     }
-
     public void setId(Integer id) {
         this.id = id;
     }
-
-    public String getIngredient() {
-        return ingredient;
-    }
-
+    public String getIngredient() {return ingredient; }
     public void setIngredient(String ingredient) {
         this.ingredient = ingredient;
     }
-
     public Integer getSupplierId() {
-        return supplierid;
+        return supplierId;
     }
-
     public void setSupplierId(Integer suplierid) {
-        this.supplierid = suplierid;
+        this.supplierId = suplierid;
     }
 }
-

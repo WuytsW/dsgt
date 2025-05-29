@@ -10,7 +10,6 @@ import java.util.List;
 
 @Repository
 public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
-
     @Query("SELECT DISTINCT r FROM Recipe r JOIN FETCH r.ingredients")
     List<Recipe> findAllWithIngredients();
 

@@ -2,6 +2,7 @@ package be.kuleuven.broker.controller;
 
 import be.kuleuven.broker.repository.RecipeRepository;
 import be.kuleuven.broker.model.Recipe;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,11 +14,9 @@ import java.util.Optional;
 @RequestMapping("/recipes")
 public class RecipeController {
 
-    private final RecipeRepository recipeRepository;
+    @Autowired
+    private RecipeRepository recipeRepository;
 
-    public RecipeController(RecipeRepository recipeRepository) {
-        this.recipeRepository = recipeRepository;
-    }
 
     @GetMapping
     public Collection<Recipe> getAllRecipes() {
@@ -35,6 +34,4 @@ public class RecipeController {
         }
         return ResponseEntity.ok(recipe);
     }
-
 }
-

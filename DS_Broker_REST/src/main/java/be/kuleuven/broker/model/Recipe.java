@@ -32,43 +32,31 @@ public class Recipe {
     public Integer getId() {
         return id;
     }
-
     public void setId(Integer id) {
         this.id = id;
     }
-
     public String getRecipe() {
         return recipe;
     }
-
     public void setRecipe(String recipe) {
         this.recipe = recipe;
     }
-
     public String getImage() {
         return image;
     }
-
     public void setImage(String image) {
         this.image = image;
     }
-
     public String getDescription() {
         return description;
     }
-
     public void setDescription(String description) {
         this.description = description;
     }
-
     public List<Ingredient> getIngredients() {
         return ingredients;
     }
-
     public void setIngredients(List<Ingredient> ingredients) {
         this.ingredients = ingredients;
     }
 }
-
-
-

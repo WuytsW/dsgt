@@ -8,5 +8,4 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface IngredientRepository extends JpaRepository<Ingredient, Integer> {
-
 }

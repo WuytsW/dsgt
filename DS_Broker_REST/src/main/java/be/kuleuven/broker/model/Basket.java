@@ -18,20 +18,20 @@ public class Basket {
 
     private int quantity;
 
-    // Getters and Setters
+
+    public Basket(){}
+    public  Basket(int userId, int recipeId, int quantity){
+        this.userId = userId;
+        this.recipeId = recipeId;
+        this.quantity = quantity;
+    }
+
     public int getId() { return id; }
-
     public void setId(int id) { this.id = id; }
-
     public int getUserId() { return userId; }
-
     public void setUserId(int userId) { this.userId = userId; }
-
     public int getRecipeId() { return recipeId; }
-
     public void setRecipeId(int recipeId) { this.recipeId = recipeId; }
-
     public int getQuantity() { return quantity; }
-
     public void setQuantity(int quantity) { this.quantity = quantity; }
 }
