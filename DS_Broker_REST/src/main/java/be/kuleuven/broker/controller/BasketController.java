@@ -58,13 +58,7 @@ public class BasketController {
 
         return ResponseEntity.ok().build();
     }
-
-
-
-
-
-
-
+    
     // Clear all basket items for a user
     @DeleteMapping("/{userId}")
     public void deleteBasketByUserId(@PathVariable int userId) {
