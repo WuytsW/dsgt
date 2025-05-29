@@ -18,7 +18,7 @@ public class Recipe {
 
     private String description;
 
-    @OneToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "ingredient_in_recipe",
             joinColumns = @JoinColumn(name = "recipeid"),

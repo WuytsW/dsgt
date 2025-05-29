@@ -5,6 +5,7 @@ import be.kuleuven.broker.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -15,17 +16,20 @@ import java.util.List;
 public class UserController {
 
     private final UserRepository userRepository;
+    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Autowired
     public UserController(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
-    @PostMapping
+    @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody User user) {
         if (userRepository.existsByUsername(user.getUsername())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
+        String hashedPassword = passwordEncoder.encode(user.getPassword());
+        user.setPassword(hashedPassword);
         User savedUser = userRepository.save(user);
         return ResponseEntity.ok(savedUser);
     }
@@ -57,12 +61,18 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody User user) {
         User found = userRepository.findByUsername(user.getUsername());
+
         if (found == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
-        if (!found.getPassword().equals(user.getPassword())) {
+
+        boolean passwordMatches = passwordEncoder.matches(user.getPassword(), found.getPassword());
+        System.out.println("Password matches: " + passwordMatches);
+
+        if (!passwordMatches) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
         }
+
         return ResponseEntity.ok(found);
     }
 
