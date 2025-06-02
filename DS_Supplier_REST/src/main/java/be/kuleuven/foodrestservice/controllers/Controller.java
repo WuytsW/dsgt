@@ -20,7 +20,7 @@ public class Controller {
 
     public Controller() {
         for (int i = 1; i <= 40; i++) {
-            stockMap.put(i, 100);
+            stockMap.put(i, 5);
         }
     }
 
@@ -40,8 +40,6 @@ public class Controller {
     public ResponseEntity<?> placeOrder(@RequestBody OrderRequest request) {
         Integer ingredientId = request.getIngredientId();
         int amount = request.getAmount();
-
-        System.out.println("Received order amount: " + amount);
 
         Integer currentStock = stockMap.get(ingredientId);
         if (currentStock == null) {

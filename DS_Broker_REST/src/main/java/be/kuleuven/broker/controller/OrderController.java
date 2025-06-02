@@ -32,13 +32,6 @@ public class OrderController {
     }
 
 
-    /*
-        This needs to implemented when the suppliers are set up.
-        For now it just returns a JSON with the ingredients grouped by supplier as a placeholder
-     */
-
-
-
     @PostMapping("/{userId}")
     public ResponseEntity<?> placeOrder(@PathVariable Integer userId) {
         List<Basket> basketItems = basketRepository.findByUserId(userId);
@@ -46,6 +39,7 @@ public class OrderController {
             return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
         }
 
+        // Group ingredient quantities
         Map<Integer, Integer> ingredientTotals = new HashMap<>();
         for (Basket basket : basketItems) {
             Recipe recipe = recipeRepository.getById(basket.getRecipeId());
@@ -60,27 +54,35 @@ public class OrderController {
             }
         }
 
-        // Check stock availability for ALL ingredients
+        // Check stock
+        List<Map<String, Object>> insufficientStock = new ArrayList<>();
         for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
             int ingredientId = entry.getKey();
             int required = entry.getValue();
 
-            int supplierId = ingredientRepository.findById(ingredientId)
-                    .map(Ingredient::getSupplierId)
-                    .filter(Objects::nonNull)
-                    .orElse(10);
+            Optional<Ingredient> optionalIngredient = ingredientRepository.findById(ingredientId);
+            int supplierId = 10; // default fallback
+
+            if (optionalIngredient.isPresent()) {
+                Integer possibleSupplierId = optionalIngredient.get().getSupplierId();
+                if (possibleSupplierId != null) {
+                    supplierId = possibleSupplierId;
+                }
+            }
+
 
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
 
             try {
-                ResponseEntity<Map> response = restTemplate.getForEntity(
-                        supplierUrl + "/stock/" + ingredientId, Map.class);
+                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientId, Map.class);
 
                 Integer stock = (Integer) response.getBody().get("stock");
                 if (stock == null || stock < required) {
-                    return ResponseEntity.badRequest().body(
-                            Map.of("error", "Insufficient stock for ingredient " + ingredientId)
-                    );
+                    insufficientStock.add(Map.of(
+                            "ingredientId", ingredientId,
+                            "required", required,
+                            "available", stock != null ? stock : 0
+                    ));
                 }
             } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
@@ -88,6 +90,39 @@ public class OrderController {
                 );
             }
         }
+
+        if (!insufficientStock.isEmpty()) {
+            Set<Integer> blockedRecipeIds = new HashSet<>();
+
+            for (Basket basket : basketItems) {
+                Recipe recipe = recipeRepository.getById(basket.getRecipeId());
+                for (Ingredient ingredient : recipe.getIngredients()) {
+                    int ingId = ingredient.getId();
+                    for (Map<String, Object> issue : insufficientStock) {
+                        if ((int) issue.get("ingredientId") == ingId) {
+                            blockedRecipeIds.add(recipe.getId());
+                            break;
+                        }
+                    }
+                }
+            }
+
+            List<RecipeDTO> blockedRecipeDTOs = new ArrayList<>();
+            for (Integer id : blockedRecipeIds) {
+                Recipe recipe = recipeRepository.getById(id);
+                basketRepository.deleteByUserIdAndRecipeId(userId, id);
+                blockedRecipeDTOs.add(new RecipeDTO(recipe.getId(), recipe.getRecipe()));
+            }
+
+
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of(
+                            "error", "Some recipes cannot be ordered",
+                            "blockedRecipes", blockedRecipeDTOs
+                    )
+            );
+        }
+
 
         // Order
         for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
@@ -123,6 +158,7 @@ public class OrderController {
             }
         }
 
+        basketRepository.deleteAll(basketItems);
         return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
 }
