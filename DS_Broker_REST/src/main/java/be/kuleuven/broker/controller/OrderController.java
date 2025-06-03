@@ -37,93 +37,27 @@ public class OrderController {
             return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
         }
 
-        // Group ingredient quantities
-        Map<Integer, Integer> ingredientTotals = new HashMap<>();
-        for (Basket basket : basketItems) {
-            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
-            int quantity = basket.getQuantity();
-
-            for (Ingredient ingredient : recipe.getIngredients()) {
-                int ingredientId = ingredient.getId();
-                int amountPerRecipe = 1; // replace with actual per-recipe logic if needed
-                int totalAmount = quantity * amountPerRecipe;
-
-                ingredientTotals.merge(ingredientId, totalAmount, Integer::sum);
-            }
-        }
+        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
         // Check stock
-        List<Map<String, Object>> insufficientStock = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
-            int ingredientId = entry.getKey();
-            int required = entry.getValue();
-
-            Optional<Ingredient> optionalIngredient = ingredientRepository.findById(ingredientId);
-            int supplierId = 10; // default fallback
-
-            if (optionalIngredient.isPresent()) {
-                Integer possibleSupplierId = optionalIngredient.get().getSupplierId();
-                if (possibleSupplierId != null) {
-                    supplierId = possibleSupplierId;
-                }
-            }
-
-
-            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-
-            try {
-                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientId, Map.class);
-
-                Integer stock = (Integer) response.getBody().get("stock");
-                if (stock == null || stock < required) {
-                    insufficientStock.add(Map.of(
-                            "ingredientId", ingredientId,
-                            "required", required,
-                            "available", stock != null ? stock : 0
-                    ));
-                }
-            } catch (Exception e) {
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                        Map.of("error", "Stock check failed for ingredient " + ingredientId, "details", e.getMessage())
-                );
-            }
+        List<Map<String, Object>> insufficientStock;
+        try {
+            insufficientStock = checkIngredientStock(ingredientTotals);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
         }
 
         if (!insufficientStock.isEmpty()) {
-            Set<Integer> blockedRecipeIds = new HashSet<>();
-
-            for (Basket basket : basketItems) {
-                Recipe recipe = recipeRepository.getById(basket.getRecipeId());
-                for (Ingredient ingredient : recipe.getIngredients()) {
-                    int ingId = ingredient.getId();
-                    for (Map<String, Object> issue : insufficientStock) {
-                        if ((int) issue.get("ingredientId") == ingId) {
-                            blockedRecipeIds.add(recipe.getId());
-                            break;
-                        }
-                    }
-                }
-            }
-
+            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
             for (Integer id : blockedRecipeIds) {
                 basketRepository.deleteByUserIdAndRecipeId(userId, id);
             }
-
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                    Map.of(
-                            "error", "Some recipes are not available",
-                            "blockedRecipesIds", blockedRecipeIds
-                    )
+                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
             );
         }
 
-
         return ResponseEntity.ok(Map.of("message", "All ingredient are available"));
-    }
-
-    @PostMapping("/pay/{userId}")
-    public ResponseEntity<String> pay(@PathVariable Long userId) {
-        return ResponseEntity.ok("Payment processed for user ID: " + userId);
     }
 
     @PostMapping("/order/{userId}")
@@ -133,80 +67,23 @@ public class OrderController {
             return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
         }
 
-        // Group ingredient quantities
-        Map<Integer, Integer> ingredientTotals = new HashMap<>();
-        for (Basket basket : basketItems) {
-            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
-            int quantity = basket.getQuantity();
-
-            for (Ingredient ingredient : recipe.getIngredients()) {
-                int ingredientId = ingredient.getId();
-                int amountPerRecipe = 1; // replace with actual per-recipe logic if needed
-                int totalAmount = quantity * amountPerRecipe;
-
-                ingredientTotals.merge(ingredientId, totalAmount, Integer::sum);
-            }
-        }
+        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
         // Check stock
-        List<Map<String, Object>> insufficientStock = new ArrayList<>();
-        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
-            int ingredientId = entry.getKey();
-            int required = entry.getValue();
-
-            Optional<Ingredient> optionalIngredient = ingredientRepository.findById(ingredientId);
-            int supplierId = 10; // default fallback
-
-            if (optionalIngredient.isPresent()) {
-                Integer possibleSupplierId = optionalIngredient.get().getSupplierId();
-                if (possibleSupplierId != null) {
-                    supplierId = possibleSupplierId;
-                }
-            }
-
-
-            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-
-            try {
-                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientId, Map.class);
-
-                Integer stock = (Integer) response.getBody().get("stock");
-                if (stock == null || stock < required) {
-                    insufficientStock.add(Map.of(
-                        "ingredientId", ingredientId,
-                        "required", required,
-                        "available", stock != null ? stock : 0
-                    ));
-                }
-            } catch (Exception e) {
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                    Map.of("error", "Stock check failed for ingredient " + ingredientId, "details", e.getMessage())
-                );
-            }
+        List<Map<String, Object>> insufficientStock;
+        try {
+            insufficientStock = checkIngredientStock(ingredientTotals);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
         }
 
         if (!insufficientStock.isEmpty()) {
-            Set<Integer> blockedRecipeIds = new HashSet<>();
-
-            for (Basket basket : basketItems) {
-                Recipe recipe = recipeRepository.getById(basket.getRecipeId());
-                for (Ingredient ingredient : recipe.getIngredients()) {
-                    int ingId = ingredient.getId();
-                    for (Map<String, Object> issue : insufficientStock) {
-                        if ((int) issue.get("ingredientId") == ingId) {
-                            blockedRecipeIds.add(recipe.getId());
-                            break;
-                        }
-                    }
-                }
-            }
-
+            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
             for (Integer id : blockedRecipeIds) {
                 basketRepository.deleteByUserIdAndRecipeId(userId, id);
             }
-
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                Map.of("error", "Some recipes cannot be ordered", "blockedRecipesIds", blockedRecipeIds)
+                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
             );
         }
 
@@ -278,6 +155,16 @@ public class OrderController {
         return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
 
+    @PostMapping("/pay/{userId}")
+    public ResponseEntity<String> pay(@PathVariable Long userId) {
+        return ResponseEntity.ok("Payment processed for user ID: " + userId);
+    }
+
+    @GetMapping("/orders")
+    public ResponseEntity<List<Order>> getAllOrders() {
+        List<Order> orders = orderRepository.findAll();
+        return ResponseEntity.ok(orders);
+    }
 
     private void revertSuccessfulOrders(List<OrderRequest> successfulOrders) {
         for (OrderRequest order : successfulOrders) {
@@ -294,18 +181,68 @@ public class OrderController {
             }
         }
     }
+    private Map<Integer, Integer> calculateIngredientTotals(List<Basket> basketItems) {
+        Map<Integer, Integer> ingredientTotals = new HashMap<>();
+        for (Basket basket : basketItems) {
+            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
+            int quantity = basket.getQuantity();
 
-
-    @GetMapping("/orders")
-    public ResponseEntity<List<Order>> getAllOrders() {
-        List<Order> orders = orderRepository.findAll();
-        return ResponseEntity.ok(orders);
+            for (Ingredient ingredient : recipe.getIngredients()) {
+                int ingredientId = ingredient.getId();
+                int totalAmount = quantity * 1; // adjust if needed
+                ingredientTotals.merge(ingredientId, totalAmount, Integer::sum);
+            }
+        }
+        return ingredientTotals;
     }
+    private List<Map<String, Object>> checkIngredientStock(Map<Integer, Integer> ingredientTotals) {
+        List<Map<String, Object>> insufficientStock = new ArrayList<>();
 
+        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
+            int ingredientId = entry.getKey();
+            int required = entry.getValue();
 
+            int supplierId = ingredientRepository.findById(ingredientId)
+                    .map(Ingredient::getSupplierId)
+                    .filter(Objects::nonNull)
+                    .orElse(10);
 
+            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
 
+            try {
+                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientId, Map.class);
+                Integer stock = (Integer) response.getBody().get("stock");
 
+                if (stock == null || stock < required) {
+                    insufficientStock.add(Map.of(
+                            "ingredientId", ingredientId,
+                            "required", required,
+                            "available", stock != null ? stock : 0
+                    ));
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Stock check failed for ingredient " + ingredientId + ": " + e.getMessage());
+            }
+        }
 
+        return insufficientStock;
+    }
+    private Set<Integer> getBlockedRecipeIds(List<Basket> basketItems, List<Map<String, Object>> insufficientStock) {
+        Set<Integer> blockedRecipeIds = new HashSet<>();
+
+        for (Basket basket : basketItems) {
+            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
+            for (Ingredient ingredient : recipe.getIngredients()) {
+                int ingId = ingredient.getId();
+                for (Map<String, Object> issue : insufficientStock) {
+                    if ((int) issue.get("ingredientId") == ingId) {
+                        blockedRecipeIds.add(recipe.getId());
+                        break;
+                    }
+                }
+            }
+        }
+
+        return blockedRecipeIds;
+    }
 }
-
