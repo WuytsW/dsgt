@@ -46,6 +46,7 @@ public class OrderController {
         try {
             insufficientStock = checkIngredientStock(ingredientTotals);
         } catch (RuntimeException e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
         }
 
@@ -76,6 +77,7 @@ public class OrderController {
         try {
             insufficientStock = checkIngredientStock(ingredientTotals);
         } catch (RuntimeException e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
         }
 
@@ -102,7 +104,7 @@ public class OrderController {
 
             try {
                 OrderRequest orderRequest = new OrderRequest();
-                orderRequest.setIngredientId(ingredientId);
+                orderRequest.setIngredientId(ingredientRepository.findById(ingredientId).get().getIngredientId_S());
                 orderRequest.setAmount(amount);
                 User user = userRepository.findById(userId).orElse(null);
                 orderRequest.setUser(user);
@@ -126,6 +128,7 @@ public class OrderController {
             } catch (Exception e) {
                 // Revert successful ones
                 revertSuccessfulOrders(successfulOrders);
+                e.printStackTrace();
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
                     Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
                 );
@@ -215,7 +218,7 @@ public class OrderController {
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
 
             try {
-                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientId, Map.class);
+                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientRepository.findById(ingredientId).get().getIngredientId_S(), Map.class);
                 Integer stock = (Integer) response.getBody().get("stock");
 
                 if (stock == null || stock < required) {
