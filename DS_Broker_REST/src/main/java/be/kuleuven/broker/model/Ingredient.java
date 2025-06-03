@@ -14,6 +14,16 @@ public class Ingredient {
 
     private Integer supplierId;
 
+    public Integer getIngredientId_S() {
+        return ingredientId_S;
+    }
+
+    public void setIngredientId_S(Integer ingredientId_S) {
+        this.ingredientId_S = ingredientId_S;
+    }
+
+    private Integer ingredientId_S;
+
 
     public Ingredient() {}
 
