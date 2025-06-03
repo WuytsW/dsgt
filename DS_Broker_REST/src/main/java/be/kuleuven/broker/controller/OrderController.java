@@ -1,10 +1,7 @@
 package be.kuleuven.broker.controller;
 
 import be.kuleuven.broker.model.*;
-import be.kuleuven.broker.repository.BasketRepository;
-import be.kuleuven.broker.repository.IngredientRepository;
-import be.kuleuven.broker.repository.SupplierRepository;
-import be.kuleuven.broker.repository.RecipeRepository;
+import be.kuleuven.broker.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
@@ -12,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,12 +20,14 @@ public class OrderController {
     private final IngredientRepository ingredientRepository;
     private final SupplierRepository supplierRepository;
     private final RecipeRepository recipeRepository;
+    private final OrderRepository orderRepository;
 
-    public OrderController( BasketRepository basketRepository, IngredientRepository ingredientRepository, SupplierRepository supplierRepository, RecipeRepository recipeRepository) {
+    public OrderController(BasketRepository basketRepository, IngredientRepository ingredientRepository, SupplierRepository supplierRepository, RecipeRepository recipeRepository, OrderRepository orderRepository) {
         this.basketRepository = basketRepository;
         this.ingredientRepository = ingredientRepository;
         this.supplierRepository = supplierRepository;
         this.recipeRepository = recipeRepository;
+        this.orderRepository = orderRepository;
     }
 
     @PostMapping("/check/{userId}")
@@ -249,7 +249,45 @@ public class OrderController {
         }
 
         basketRepository.deleteAll(basketItems);
+
+
+        // Save Order
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setTimestamp(LocalDateTime.now());
+
+        List<OrderRecipe> orderRecipes = new ArrayList<>();
+        for (Basket basket : basketItems) {
+            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
+
+            OrderRecipe or = new OrderRecipe();
+            or.setOrder(order);
+            or.setRecipe(recipe);
+            or.setQuantity(basket.getQuantity());
+
+            orderRecipes.add(or);
+        }
+
+        order.setOrderRecipes(orderRecipes);
+        orderRepository.save(order);
+
+
         return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
+
+
+
+
+    @GetMapping("/orders")
+    public ResponseEntity<List<Order>> getAllOrders() {
+        List<Order> orders = orderRepository.findAll();
+        return ResponseEntity.ok(orders);
+    }
+
+
+
+
+
+
 }
 
