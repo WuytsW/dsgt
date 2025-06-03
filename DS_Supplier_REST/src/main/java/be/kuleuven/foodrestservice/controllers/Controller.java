@@ -59,6 +59,30 @@ public class Controller {
                 "remainingStock", stockMap.get(ingredientId)
         ));
     }
+
+
+
+
+    @PostMapping("/revert")
+    public ResponseEntity<?> revertOrder(@RequestBody OrderRequest request) {
+        Integer ingredientId = request.getIngredientId();
+        int amount = request.getAmount();
+
+        Integer currentStock = stockMap.get(ingredientId);
+        if (currentStock == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "Ingredient not found"));
+        }
+
+        stockMap.put(ingredientId, currentStock + amount);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Revert received and stock updated",
+                "remainingStock", stockMap.get(ingredientId)
+        ));
+    }
+
+
 }
 
 

@@ -173,14 +173,14 @@ public class OrderController {
                 Integer stock = (Integer) response.getBody().get("stock");
                 if (stock == null || stock < required) {
                     insufficientStock.add(Map.of(
-                            "ingredientId", ingredientId,
-                            "required", required,
-                            "available", stock != null ? stock : 0
+                        "ingredientId", ingredientId,
+                        "required", required,
+                        "available", stock != null ? stock : 0
                     ));
                 }
             } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                        Map.of("error", "Stock check failed for ingredient " + ingredientId, "details", e.getMessage())
+                    Map.of("error", "Stock check failed for ingredient " + ingredientId, "details", e.getMessage())
                 );
             }
         }
@@ -206,23 +206,19 @@ public class OrderController {
             }
 
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                    Map.of(
-                            "error", "Some recipes cannot be ordered",
-                            "blockedRecipesIds", blockedRecipeIds
-                    )
+                Map.of("error", "Some recipes cannot be ordered", "blockedRecipesIds", blockedRecipeIds)
             );
         }
 
 
         // Order
+        List<OrderRequest> successfulOrders = new ArrayList<>();
+
         for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
             int ingredientId = entry.getKey();
             int amount = entry.getValue();
 
-            int supplierId = ingredientRepository.findById(ingredientId)
-                    .map(Ingredient::getSupplierId)
-                    .filter(Objects::nonNull)
-                    .orElse(10);
+            int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
 
             try {
@@ -232,24 +228,31 @@ public class OrderController {
 
                 HttpEntity<OrderRequest> requestEntity = new HttpEntity<>(orderRequest);
                 ResponseEntity<String> response = restTemplate.postForEntity(
-                        supplierUrl + "/order/", requestEntity, String.class
+                    supplierUrl + "/order/", requestEntity, String.class
                 );
 
                 if (!response.getStatusCode().is2xxSuccessful()) {
-                    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                            Map.of("error", "Order failed for ingredient " + ingredientId, "details", response.getBody())
-                    );
+                    revertSuccessfulOrders(successfulOrders);
+                    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
+                        "error", "Order failed for ingredient " + ingredientId, "details", response.getBody()
+                    ));
                 }
 
+                // Keep track of this successful order
+                successfulOrders.add(orderRequest);
+
             } catch (Exception e) {
+                // Revert successful ones
+                revertSuccessfulOrders(successfulOrders);
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                        Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
+                    Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
                 );
             }
         }
 
-        basketRepository.deleteAll(basketItems);
 
+        //Clear the basket
+        basketRepository.deleteAll(basketItems);
 
         // Save Order
         Order order = new Order();
@@ -276,6 +279,21 @@ public class OrderController {
     }
 
 
+    private void revertSuccessfulOrders(List<OrderRequest> successfulOrders) {
+        for (OrderRequest order : successfulOrders) {
+            try {
+                int ingredientId = order.getIngredientId();
+                int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
+                String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
+
+                HttpEntity<OrderRequest> revertEntity = new HttpEntity<>(order);
+                restTemplate.postForEntity(supplierUrl + "/revert", revertEntity, String.class);
+
+            } catch (Exception ex) {
+                System.err.println("Failed to revert order for ingredient " + order.getIngredientId() + ": " + ex.getMessage());
+            }
+        }
+    }
 
 
     @GetMapping("/orders")
