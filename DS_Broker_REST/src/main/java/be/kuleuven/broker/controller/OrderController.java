@@ -2,7 +2,8 @@ package be.kuleuven.broker.controller;
 
 import be.kuleuven.broker.model.*;
 import be.kuleuven.broker.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,7 +12,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @RestController
 public class OrderController {
@@ -34,7 +34,7 @@ public class OrderController {
 
     @PostMapping("/check/{userId}")
     public ResponseEntity<?> checkOrder(@PathVariable Integer userId) {
-        List<Basket> basketItems = basketRepository.findByUserId(userId);
+        List<BasketItem> basketItems = basketRepository.findByUserId(userId);
         if (basketItems.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
         }
@@ -62,12 +62,18 @@ public class OrderController {
         return ResponseEntity.ok(Map.of("message", "All ingredient are available"));
     }
 
-    @PostMapping("/order/{userId}")
-    public ResponseEntity<?> placeOrder(@PathVariable Integer userId) {
-        List<Basket> basketItems = basketRepository.findByUserId(userId);
-        if (basketItems.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
+    @PostMapping("/check-guest")
+    public ResponseEntity<?> checkGuestBasket(@RequestBody List<BasketItem> basketItems) {
+        // validate ingredients for each recipe
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        try {
+            String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(basketItems);
+            System.out.println("Received guest basket:\n" + json);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
         }
+
 
         Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
@@ -81,6 +87,35 @@ public class OrderController {
 
         if (!insufficientStock.isEmpty()) {
             Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
+
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
+            );
+        }
+
+        return ResponseEntity.ok(Map.of("message", "All ingredient are available"));
+    }
+
+
+    @PostMapping("/order/{userId}")
+    public ResponseEntity<?> placeOrder(@PathVariable Integer userId) {
+        List<BasketItem> basketItemItems = basketRepository.findByUserId(userId);
+        if (basketItemItems.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
+        }
+
+        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItemItems);
+
+        // Check stock
+        List<Map<String, Object>> insufficientStock;
+        try {
+            insufficientStock = checkIngredientStock(ingredientTotals);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
+        }
+
+        if (!insufficientStock.isEmpty()) {
+            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItemItems, insufficientStock);
             for (Integer id : blockedRecipeIds) {
                 basketRepository.deleteByUserIdAndRecipeId(userId, id);
             }
@@ -99,10 +134,11 @@ public class OrderController {
 
             int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
+            supplierUrl = "http://localhost:9092";
 
             try {
                 OrderRequest orderRequest = new OrderRequest();
-                orderRequest.setIngredientId(ingredientId);
+                orderRequest.setIngredientId(ingredientRepository.findById(ingredientId).get().getIngredientId_S());
                 orderRequest.setAmount(amount);
                 User user = userRepository.findById(userId).orElse(null);
                 orderRequest.setUser(user);
@@ -126,6 +162,7 @@ public class OrderController {
             } catch (Exception e) {
                 // Revert successful ones
                 revertSuccessfulOrders(successfulOrders);
+                e.printStackTrace();
                 return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
                     Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
                 );
@@ -134,7 +171,7 @@ public class OrderController {
 
 
         //Clear the basket
-        basketRepository.deleteAll(basketItems);
+        basketRepository.deleteAll(basketItemItems);
 
         // Save Order
         Order order = new Order();
@@ -142,13 +179,13 @@ public class OrderController {
         order.setTimestamp(LocalDateTime.now());
 
         List<OrderRecipe> orderRecipes = new ArrayList<>();
-        for (Basket basket : basketItems) {
-            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
+        for (BasketItem basketItem : basketItemItems) {
+            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
 
             OrderRecipe or = new OrderRecipe();
             or.setOrder(order);
             or.setRecipe(recipe);
-            or.setQuantity(basket.getQuantity());
+            or.setQuantity(basketItem.getQuantity());
 
             orderRecipes.add(or);
         }
@@ -159,6 +196,16 @@ public class OrderController {
 
         return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
+
+
+
+
+    //TODO  order-guest
+
+
+
+
+
 
     @PostMapping("/pay/{userId}")
     public ResponseEntity<String> pay(@PathVariable Long userId) {
@@ -186,11 +233,11 @@ public class OrderController {
             }
         }
     }
-    private Map<Integer, Integer> calculateIngredientTotals(List<Basket> basketItems) {
+    private Map<Integer, Integer> calculateIngredientTotals(List<BasketItem> basketItemItems) {
         Map<Integer, Integer> ingredientTotals = new HashMap<>();
-        for (Basket basket : basketItems) {
-            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
-            int quantity = basket.getQuantity();
+        for (BasketItem basketItem : basketItemItems) {
+            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
+            int quantity = basketItem.getQuantity();
 
             for (Ingredient ingredient : recipe.getIngredients()) {
                 int ingredientId = ingredient.getId();
@@ -212,10 +259,14 @@ public class OrderController {
                     .filter(Objects::nonNull)
                     .orElse(10);
 
+
+
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
+            System.out.println(supplierUrl);
+            supplierUrl = "http://localhost:9092";
 
             try {
-                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientId, Map.class);
+                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientRepository.findById(ingredientId).get().getIngredientId_S(), Map.class);
                 Integer stock = (Integer) response.getBody().get("stock");
 
                 if (stock == null || stock < required) {
@@ -232,11 +283,11 @@ public class OrderController {
 
         return insufficientStock;
     }
-    private Set<Integer> getBlockedRecipeIds(List<Basket> basketItems, List<Map<String, Object>> insufficientStock) {
+    private Set<Integer> getBlockedRecipeIds(List<BasketItem> basketItemItems, List<Map<String, Object>> insufficientStock) {
         Set<Integer> blockedRecipeIds = new HashSet<>();
 
-        for (Basket basket : basketItems) {
-            Recipe recipe = recipeRepository.getById(basket.getRecipeId());
+        for (BasketItem basketItem : basketItemItems) {
+            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
             for (Ingredient ingredient : recipe.getIngredients()) {
                 int ingId = ingredient.getId();
                 for (Map<String, Object> issue : insufficientStock) {

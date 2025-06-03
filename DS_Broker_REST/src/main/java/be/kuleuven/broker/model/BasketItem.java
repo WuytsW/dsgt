@@ -4,7 +4,7 @@ import  javax.persistence.*;
 
 @Entity
 @Table(name = "basket")
-public class Basket {
+public class BasketItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,8 +19,8 @@ public class Basket {
     private int quantity;
 
 
-    public Basket(){}
-    public  Basket(int userId, int recipeId, int quantity){
+    public BasketItem(){}
+    public BasketItem(int userId, int recipeId, int quantity){
         this.userId = userId;
         this.recipeId = recipeId;
         this.quantity = quantity;

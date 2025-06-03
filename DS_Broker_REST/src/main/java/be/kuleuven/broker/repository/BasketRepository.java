@@ -1,6 +1,6 @@
 package be.kuleuven.broker.repository;
 
-import be.kuleuven.broker.model.Basket;
+import be.kuleuven.broker.model.BasketItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,14 +11,14 @@ import javax.transaction.Transactional;
 import java.util.List;
 
 @Repository
-public interface BasketRepository extends JpaRepository<Basket, Integer> {
-    List<Basket> findByUserId(int userId);
+public interface BasketRepository extends JpaRepository<BasketItem, Integer> {
+    List<BasketItem> findByUserId(int userId);
     void deleteByUserId(int userId);
-    Basket findByUserIdAndRecipeId(int userId, int recipeId);
+    BasketItem findByUserIdAndRecipeId(int userId, int recipeId);
 
     @Transactional
     @Modifying
-    @Query("DELETE FROM Basket b WHERE b.userId = :userId AND b.recipeId = :recipeId")
+    @Query("DELETE FROM BasketItem b WHERE b.userId = :userId AND b.recipeId = :recipeId")
     void deleteByUserIdAndRecipeId(@Param("userId") Integer userId, @Param("recipeId") Integer recipeId);
 
 }

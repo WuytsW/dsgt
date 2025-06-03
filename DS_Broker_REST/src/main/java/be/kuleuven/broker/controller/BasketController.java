@@ -1,13 +1,11 @@
 package be.kuleuven.broker.controller;
 
-import be.kuleuven.broker.model.Basket;
+import be.kuleuven.broker.model.BasketItem;
 import be.kuleuven.broker.repository.BasketRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/basket")
@@ -20,27 +18,27 @@ public class BasketController {
     }
 
     @GetMapping("/{userId}")
-    public List<Basket> getBasketByUserId(@PathVariable int userId) {
+    public List<BasketItem> getBasketByUserId(@PathVariable int userId) {
         return basketRepository.findByUserId(userId);
     }
 
 
     @PostMapping("/{userId}/add")
-    public Basket addToBasket(@PathVariable int userId, @RequestBody Basket incoming) {
-        Basket existing = basketRepository.findByUserIdAndRecipeId(userId, incoming.getRecipeId());
+    public BasketItem addToBasket(@PathVariable int userId, @RequestBody BasketItem incoming) {
+        BasketItem existing = basketRepository.findByUserIdAndRecipeId(userId, incoming.getRecipeId());
 
         if (existing != null) {
             existing.setQuantity(existing.getQuantity() + incoming.getQuantity());
             return basketRepository.save(existing);
         } else {
-            Basket newItem = new Basket(userId, incoming.getRecipeId(), incoming.getQuantity());
+            BasketItem newItem = new BasketItem(userId, incoming.getRecipeId(), incoming.getQuantity());
             return basketRepository.save(newItem);
         }
     }
 
     @PostMapping("/{userId}/remove")
-    public ResponseEntity<Void> removeFromBasket(@PathVariable int userId, @RequestBody Basket incoming) {
-        Basket existing = basketRepository.findByUserIdAndRecipeId(userId, incoming.getRecipeId());
+    public ResponseEntity<Void> removeFromBasket(@PathVariable int userId, @RequestBody BasketItem incoming) {
+        BasketItem existing = basketRepository.findByUserIdAndRecipeId(userId, incoming.getRecipeId());
 
         if (existing == null) {
             return ResponseEntity.notFound().build();
