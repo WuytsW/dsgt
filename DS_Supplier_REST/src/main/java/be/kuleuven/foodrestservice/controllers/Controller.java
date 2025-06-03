@@ -20,11 +20,6 @@ public class Controller {
 
     private final Map<Integer, Integer> stockMap = new HashMap<>();
 
-    public Controller() {
-        for (int i = 1; i <= 40; i++) {
-            stockMap.put(i, 5);
-        }
-    }
 
     @GetMapping("/stock")
     public ResponseEntity<?> getAllStock() {
