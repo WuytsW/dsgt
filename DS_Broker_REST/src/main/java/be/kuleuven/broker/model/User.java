@@ -12,11 +12,16 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = true)
+    @Column(nullable = false)
     private String email;
 
     @Column(nullable = false)
     private String password;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "address_id", referencedColumnName = "id")
+    private Address address;
+
 
     public User() {}
 
@@ -35,5 +40,11 @@ public class User {
     public void setEmail(String email) { this.email = email; }
     public String getPassword() { return password; }
     public void setPassword(String password) { this.password = password; }
+    public Address getAddress() {
+        return address;
+    }
+    public void setAddress(Address address) {
+        this.address = address;
+    }
 }
 

@@ -61,8 +61,12 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody User user) {
         if (userRepository.existsByUsername(user.getUsername())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
         }
+        if (userRepository.existsByEmail(user.getEmail())){
+            throw new ResponseStatusException(HttpStatus.CONFLICT);
+        }
+
         String hashedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(hashedPassword);
         User savedUser = userRepository.save(user);
