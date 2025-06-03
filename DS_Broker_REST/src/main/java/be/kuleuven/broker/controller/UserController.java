@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/users")
@@ -30,12 +31,13 @@ public class UserController {
 
     @GetMapping("/{username}")
     public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        User user = userRepository.findByUsername(username);
-        if (user == null) {
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
-        return ResponseEntity.ok(user);
+        return ResponseEntity.ok(userOpt.get());
     }
+
 
     @GetMapping("/exists/{username}")
     public ResponseEntity<Boolean> checkUserExists(@PathVariable String username) {
@@ -44,19 +46,27 @@ public class UserController {
 
 
     @PostMapping("/login")
-    public ResponseEntity<User> login(@RequestBody User user) {
-        User found = userRepository.findByUsername(user.getUsername());
+    public ResponseEntity<User> login(@RequestBody User loginAttempt) {
+        String identifier = loginAttempt.getUsername(); // could be username or email
+        String password = loginAttempt.getPassword();
 
-        if (found == null) {
+        Optional<User> userOpt = userRepository.findByUsername(identifier);
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByEmail(identifier);
+        }
+
+        if (userOpt.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
 
-        if (!passwordEncoder.matches(user.getPassword(), found.getPassword())) {
+        User user = userOpt.get();
+        if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password");
         }
 
-        return ResponseEntity.ok(found);
+        return ResponseEntity.ok(user);
     }
+
 
     @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody User user) {
