@@ -1,7 +1,9 @@
 package be.kuleuven.foodrestservice.controllers;
 
+import be.kuleuven.foodrestservice.model.Address;
 import be.kuleuven.foodrestservice.model.Ingredient;
 import be.kuleuven.foodrestservice.model.OrderRequest;
+import be.kuleuven.foodrestservice.model.User;
 import be.kuleuven.foodrestservice.repository.IngredientRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,6 +43,7 @@ public class Controller {
         Integer ingredientId = request.getIngredientId();
         int amount = request.getAmount();
 
+
         Integer currentStock = stockMap.get(ingredientId);
         if (currentStock == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -53,6 +56,19 @@ public class Controller {
         }
 
         stockMap.put(ingredientId, currentStock - amount);
+
+        User user = request.getUser();
+        Address address = user.getAddress();
+        String addressString = address.getCountry() + ", " + address.getPostcode() + ", " + address.getStreet() + " " + address.getStreetNumber();
+        System.out.printf("""
+            ✅ Order Confirmed
+            - Ingredient ID: %d
+            - Amount: %d
+            - Customer Email: %s
+            - Shipping Address: %s
+            - Remaining Stock: %d
+            --------------------------------------------
+            """, ingredientId, amount, user.getEmail(), addressString, stockMap.get(ingredientId));
 
         return ResponseEntity.ok(Map.of(
                 "message", "Order received and stock updated",

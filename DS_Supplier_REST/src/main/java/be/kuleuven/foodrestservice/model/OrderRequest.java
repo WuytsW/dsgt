@@ -3,6 +3,7 @@ package be.kuleuven.foodrestservice.model;
 public class OrderRequest {
     private Integer ingredientId;
     private int amount;
+    private User user;
 
 
     public Integer getIngredientId() {
@@ -16,5 +17,11 @@ public class OrderRequest {
     }
     public void setAmount(int amount) {
         this.amount = amount;
+    }
+    public User getUser() {
+        return user;
+    }
+    public void setUser(User user) {
+        this.user = user;
     }
 }

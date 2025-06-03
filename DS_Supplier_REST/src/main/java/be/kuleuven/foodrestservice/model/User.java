@@ -1,32 +1,16 @@
-package be.kuleuven.broker.model;
-import javax.persistence.*;
+package be.kuleuven.foodrestservice.model;
 
-@Entity
-@Table(name = "users")
+
+
 public class User {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id; // ← Add this field
-
-    @Column(nullable = false, unique = true)
+    private Integer id;
     private String username;
-
-    @Column(nullable = false)
     private String email;
-
-    @Column(nullable = false)
     private String password;
-
-    @Column(nullable = false)
     private Boolean isAdmin;
-
-    @OneToOne(cascade = CascadeType.ALL)
-    @JoinColumn(name = "address_id", referencedColumnName = "id")
     private Address address;
 
 
-    public User() {}
 
 
     public Integer getId() { return id; }

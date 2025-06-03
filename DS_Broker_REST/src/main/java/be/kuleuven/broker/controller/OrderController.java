@@ -21,13 +21,15 @@ public class OrderController {
     private final SupplierRepository supplierRepository;
     private final RecipeRepository recipeRepository;
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
 
-    public OrderController(BasketRepository basketRepository, IngredientRepository ingredientRepository, SupplierRepository supplierRepository, RecipeRepository recipeRepository, OrderRepository orderRepository) {
+    public OrderController(BasketRepository basketRepository, IngredientRepository ingredientRepository, SupplierRepository supplierRepository, RecipeRepository recipeRepository, OrderRepository orderRepository, UserRepository userRepository) {
         this.basketRepository = basketRepository;
         this.ingredientRepository = ingredientRepository;
         this.supplierRepository = supplierRepository;
         this.recipeRepository = recipeRepository;
         this.orderRepository = orderRepository;
+        this.userRepository = userRepository;
     }
 
     @PostMapping("/check/{userId}")
@@ -102,6 +104,9 @@ public class OrderController {
                 OrderRequest orderRequest = new OrderRequest();
                 orderRequest.setIngredientId(ingredientId);
                 orderRequest.setAmount(amount);
+                User user = userRepository.findById(userId).orElse(null);
+                orderRequest.setUser(user);
+
 
                 HttpEntity<OrderRequest> requestEntity = new HttpEntity<>(orderRequest);
                 ResponseEntity<String> response = restTemplate.postForEntity(
