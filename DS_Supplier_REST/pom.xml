@@ -7,7 +7,7 @@
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>2.7.3</version> <relativePath/> </parent>
 	<groupId>be.kuleuven</groupId>
-	<artifactId>food-rest-service</artifactId> <version>0.0.1-SNAPSHOT</version>
+	<artifactId>DS_Supplier</artifactId> <version>1</version>
 	<name>food-rest-service</name>
 	<description>REST Food Supplier Service</description>
 	<properties>
