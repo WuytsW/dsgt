@@ -125,7 +125,6 @@ public class OrderController {
 
             int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-            supplierUrl = "http://localhost:9092";
 
             try {
                 OrderRequest orderRequest = new OrderRequest();
@@ -221,7 +220,6 @@ public class OrderController {
 
             int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-            supplierUrl = "http://localhost:9092";
 
             try {
                 OrderRequest orderRequest = new OrderRequest();
@@ -341,8 +339,6 @@ public class OrderController {
 
 
             String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-            System.out.println(supplierUrl);
-            supplierUrl = "http://localhost:9092";
 
             try {
                 ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientRepository.findById(ingredientId).get().getIngredientId_S(), Map.class);
