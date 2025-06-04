@@ -64,18 +64,7 @@ public class OrderController {
 
     @PostMapping("/check-guest")
     public ResponseEntity<?> checkGuestBasket(@RequestBody List<BasketItem> basketItems) {
-        // validate ingredients for each recipe
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        try {
-            String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(basketItems);
-            System.out.println("Received guest basket:\n" + json);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-
-
-        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
+                Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
         // Check stock
         List<Map<String, Object>> insufficientStock;
@@ -200,7 +189,95 @@ public class OrderController {
 
 
 
-    //TODO  order-guest
+    @PostMapping("/order-guest")
+    public ResponseEntity<?> placeGuestOrder(@RequestBody GuestOrder guestOrder) {
+        List<BasketItem> basketItems = guestOrder.getBasket();
+        User user = guestOrder.getGuestUser();
+        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
+
+        // Check stock
+        List<Map<String, Object>> insufficientStock;
+        try {
+            insufficientStock = checkIngredientStock(ingredientTotals);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
+        }
+
+        if (!insufficientStock.isEmpty()) {
+            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
+            );
+        }
+
+        // Order
+        List<OrderRequest> successfulOrders = new ArrayList<>();
+
+        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
+            int ingredientId = entry.getKey();
+            int amount = entry.getValue();
+
+            int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
+            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
+            supplierUrl = "http://localhost:9092";
+
+            try {
+                OrderRequest orderRequest = new OrderRequest();
+                orderRequest.setIngredientId(ingredientRepository.findById(ingredientId).get().getIngredientId_S());
+                orderRequest.setAmount(amount);
+                orderRequest.setUser(user);
+
+
+                HttpEntity<OrderRequest> requestEntity = new HttpEntity<>(orderRequest);
+                ResponseEntity<String> response = restTemplate.postForEntity(
+                        supplierUrl + "/order/", requestEntity, String.class
+                );
+
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    revertSuccessfulOrders(successfulOrders);
+                    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
+                            "error", "Order failed for ingredient " + ingredientId, "details", response.getBody()
+                    ));
+                }
+
+                // Keep track of this successful order
+                successfulOrders.add(orderRequest);
+
+            } catch (Exception e) {
+                // Revert successful ones
+                revertSuccessfulOrders(successfulOrders);
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                        Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
+                );
+            }
+        }
+
+
+        // Save Order
+        Order order = new Order();
+        order.setUserId(0);
+        order.setTimestamp(LocalDateTime.now());
+
+        List<OrderRecipe> orderRecipes = new ArrayList<>();
+        for (BasketItem basketItem : basketItems) {
+            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
+
+            OrderRecipe or = new OrderRecipe();
+            or.setOrder(order);
+            or.setRecipe(recipe);
+            or.setQuantity(basketItem.getQuantity());
+
+            orderRecipes.add(or);
+        }
+
+        order.setOrderRecipes(orderRecipes);
+        orderRepository.save(order);
+
+
+        return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
+    }
+
 
 
 
