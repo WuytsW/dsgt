@@ -46,6 +46,7 @@ public class OrderController {
         try {
             insufficientStock = checkIngredientStock(ingredientTotals);
         } catch (RuntimeException e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
         }
 
@@ -71,6 +72,7 @@ public class OrderController {
         try {
             insufficientStock = checkIngredientStock(ingredientTotals);
         } catch (RuntimeException e) {
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
         }
 

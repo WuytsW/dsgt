@@ -1,0 +1,7 @@
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/FoodRestServiceApplication.java
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/controllers/Controller.java
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/model/Ingredient.java
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/model/User.java
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/model/Address.java
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/repository/IngredientRepository.java
+/home/mathijs/IdeaProjects/dsgt/DS_Supplier_REST/src/main/java/be/kuleuven/foodrestservice/model/OrderRequest.java
