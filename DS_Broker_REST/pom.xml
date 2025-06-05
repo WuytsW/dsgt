@@ -9,8 +9,8 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>be.kuleuven</groupId>
-	<artifactId>Broker</artifactId>
-	<version>0.1</version>
+	<artifactId>DS_Broker</artifactId>
+	<version>1</version>
 	<name>Broker</name>
 	<description>REST Broker Service</description>
 	<properties>

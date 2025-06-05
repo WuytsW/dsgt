@@ -12,6 +12,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @RestController
 public class OrderController {
@@ -35,10 +38,6 @@ public class OrderController {
     @PostMapping("/check/{userId}")
     public ResponseEntity<?> checkOrder(@PathVariable Integer userId) {
         List<BasketItem> basketItems = basketRepository.findByUserId(userId);
-        if (basketItems.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
-        }
-
         Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
         // Check stock
@@ -65,9 +64,8 @@ public class OrderController {
 
     @PostMapping("/check-guest")
     public ResponseEntity<?> checkGuestBasket(@RequestBody List<BasketItem> basketItems) {
-                Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
+        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
-        // Check stock
         List<Map<String, Object>> insufficientStock;
         try {
             insufficientStock = checkIngredientStock(ingredientTotals);
@@ -78,7 +76,6 @@ public class OrderController {
 
         if (!insufficientStock.isEmpty()) {
             Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
-
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
                     Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
             );
@@ -90,105 +87,22 @@ public class OrderController {
 
     @PostMapping("/order/{userId}")
     public ResponseEntity<?> placeOrder(@PathVariable Integer userId) {
-        List<BasketItem> basketItemItems = basketRepository.findByUserId(userId);
-        if (basketItemItems.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Basket is empty"));
-        }
+        List<BasketItem> basketItems = basketRepository.findByUserId(userId);
+        User user = userRepository.findById(userId).orElse(null);
+        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
-        Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItemItems);
+        ResponseEntity<?> stockResponse = checkAndHandleStock(ingredientTotals, basketItems, userId);
+        if (stockResponse != null) return stockResponse;
 
-        // Check stock
-        List<Map<String, Object>> insufficientStock;
-        try {
-            insufficientStock = checkIngredientStock(ingredientTotals);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
-        }
-
-        if (!insufficientStock.isEmpty()) {
-            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItemItems, insufficientStock);
-            for (Integer id : blockedRecipeIds) {
-                basketRepository.deleteByUserIdAndRecipeId(userId, id);
-            }
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
-            );
-        }
-
-
-        // Order
         List<OrderRequest> successfulOrders = new ArrayList<>();
+        ResponseEntity<?> orderResponse = placeIngredientOrders(ingredientTotals, user, successfulOrders);
+        if (orderResponse != null) return orderResponse;
 
-        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
-            int ingredientId = entry.getKey();
-            int amount = entry.getValue();
-
-            int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
-            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-
-            try {
-                OrderRequest orderRequest = new OrderRequest();
-                orderRequest.setIngredientId(ingredientRepository.findById(ingredientId).get().getIngredientId_S());
-                orderRequest.setAmount(amount);
-                User user = userRepository.findById(userId).orElse(null);
-                orderRequest.setUser(user);
-
-
-                HttpEntity<OrderRequest> requestEntity = new HttpEntity<>(orderRequest);
-                ResponseEntity<String> response = restTemplate.postForEntity(
-                    supplierUrl + "/order/", requestEntity, String.class
-                );
-
-                if (!response.getStatusCode().is2xxSuccessful()) {
-                    revertSuccessfulOrders(successfulOrders);
-                    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
-                        "error", "Order failed for ingredient " + ingredientId, "details", response.getBody()
-                    ));
-                }
-
-                // Keep track of this successful order
-                successfulOrders.add(orderRequest);
-
-            } catch (Exception e) {
-                // Revert successful ones
-                revertSuccessfulOrders(successfulOrders);
-                e.printStackTrace();
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                    Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
-                );
-            }
-        }
-
-
-        //Clear the basket
-        basketRepository.deleteAll(basketItemItems);
-
-        // Save Order
-        Order order = new Order();
-        order.setUserId(userId);
-        order.setTimestamp(LocalDateTime.now());
-
-        List<OrderRecipe> orderRecipes = new ArrayList<>();
-        for (BasketItem basketItem : basketItemItems) {
-            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
-
-            OrderRecipe or = new OrderRecipe();
-            or.setOrder(order);
-            or.setRecipe(recipe);
-            or.setQuantity(basketItem.getQuantity());
-
-            orderRecipes.add(or);
-        }
-
-        order.setOrderRecipes(orderRecipes);
-        orderRepository.save(order);
-
+        basketRepository.deleteAll(basketItems);
+        saveOrder(userId, basketItems);
 
         return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
-
-
-
 
     @PostMapping("/order-guest")
     public ResponseEntity<?> placeGuestOrder(@RequestBody GuestOrder guestOrder) {
@@ -196,92 +110,17 @@ public class OrderController {
         User user = guestOrder.getGuestUser();
         Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
-        // Check stock
-        List<Map<String, Object>> insufficientStock;
-        try {
-            insufficientStock = checkIngredientStock(ingredientTotals);
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
-        }
+        ResponseEntity<?> stockResponse = checkAndHandleStock(ingredientTotals, basketItems, null);
+        if (stockResponse != null) return stockResponse;
 
-        if (!insufficientStock.isEmpty()) {
-            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
-            );
-        }
-
-        // Order
         List<OrderRequest> successfulOrders = new ArrayList<>();
+        ResponseEntity<?> orderResponse = placeIngredientOrders(ingredientTotals, user, successfulOrders);
+        if (orderResponse != null) return orderResponse;
 
-        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
-            int ingredientId = entry.getKey();
-            int amount = entry.getValue();
-
-            int supplierId = ingredientRepository.findById(ingredientId).map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
-            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
-
-            try {
-                OrderRequest orderRequest = new OrderRequest();
-                orderRequest.setIngredientId(ingredientRepository.findById(ingredientId).get().getIngredientId_S());
-                orderRequest.setAmount(amount);
-                orderRequest.setUser(user);
-
-
-                HttpEntity<OrderRequest> requestEntity = new HttpEntity<>(orderRequest);
-                ResponseEntity<String> response = restTemplate.postForEntity(
-                        supplierUrl + "/order/", requestEntity, String.class
-                );
-
-                if (!response.getStatusCode().is2xxSuccessful()) {
-                    revertSuccessfulOrders(successfulOrders);
-                    return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of(
-                            "error", "Order failed for ingredient " + ingredientId, "details", response.getBody()
-                    ));
-                }
-
-                // Keep track of this successful order
-                successfulOrders.add(orderRequest);
-
-            } catch (Exception e) {
-                // Revert successful ones
-                revertSuccessfulOrders(successfulOrders);
-                e.printStackTrace();
-                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
-                        Map.of("error", "Error placing order for ingredient " + ingredientId, "details", e.getMessage())
-                );
-            }
-        }
-
-
-        // Save Order
-        Order order = new Order();
-        order.setUserId(0);
-        order.setTimestamp(LocalDateTime.now());
-
-        List<OrderRecipe> orderRecipes = new ArrayList<>();
-        for (BasketItem basketItem : basketItems) {
-            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
-
-            OrderRecipe or = new OrderRecipe();
-            or.setOrder(order);
-            or.setRecipe(recipe);
-            or.setQuantity(basketItem.getQuantity());
-
-            orderRecipes.add(or);
-        }
-
-        order.setOrderRecipes(orderRecipes);
-        orderRepository.save(order);
-
+        saveOrder(0, basketItems);
 
         return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
-
-
-
-
-
 
 
     @PostMapping("/pay/{userId}")
@@ -325,38 +164,155 @@ public class OrderController {
         return ingredientTotals;
     }
     private List<Map<String, Object>> checkIngredientStock(Map<Integer, Integer> ingredientTotals) {
-        List<Map<String, Object>> insufficientStock = new ArrayList<>();
+        List<Map<String, Object>> insufficientStock = Collections.synchronizedList(new ArrayList<>());
+        ExecutorService executor = Executors.newFixedThreadPool(10); // Adjust thread pool size as needed
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
             int ingredientId = entry.getKey();
             int required = entry.getValue();
 
-            int supplierId = ingredientRepository.findById(ingredientId)
-                    .map(Ingredient::getSupplierId)
-                    .filter(Objects::nonNull)
-                    .orElse(10);
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                try {
+                    int supplierId = ingredientRepository.findById(ingredientId)
+                            .map(Ingredient::getSupplierId)
+                            .filter(Objects::nonNull)
+                            .orElse(10);
 
+                    String supplierUrl = supplierRepository.findById(supplierId)
+                            .orElseThrow(() -> new RuntimeException("Supplier not found for ID: " + supplierId))
+                            .getUrl();
 
+                    Integer supplierIngredientId = ingredientRepository.findById(ingredientId)
+                            .orElseThrow(() -> new RuntimeException("Ingredient not found for ID: " + ingredientId))
+                            .getIngredientId_S();
 
-            String supplierUrl = supplierRepository.findById(supplierId).get().getUrl();
+                    ResponseEntity<Map> response = restTemplate.getForEntity(
+                            supplierUrl + "/stock/" + supplierIngredientId, Map.class);
 
-            try {
-                ResponseEntity<Map> response = restTemplate.getForEntity(supplierUrl + "/stock/" + ingredientRepository.findById(ingredientId).get().getIngredientId_S(), Map.class);
-                Integer stock = (Integer) response.getBody().get("stock");
+                    Integer stock = (Integer) response.getBody().get("stock");
 
-                if (stock == null || stock < required) {
-                    insufficientStock.add(Map.of(
-                            "ingredientId", ingredientId,
-                            "required", required,
-                            "available", stock != null ? stock : 0
-                    ));
+                    if (stock == null || stock < required) {
+                        insufficientStock.add(Map.of(
+                                "ingredientId", ingredientId,
+                                "required", required,
+                                "available", stock != null ? stock : 0
+                        ));
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("Stock check failed for ingredient " + ingredientId + ": " + e.getMessage(), e);
                 }
-            } catch (Exception e) {
-                throw new RuntimeException("Stock check failed for ingredient " + ingredientId + ": " + e.getMessage());
-            }
+            }, executor);
+
+            futures.add(future);
         }
 
+        // Wait for all tasks to complete
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        executor.shutdown();
+
         return insufficientStock;
+    }
+    private ResponseEntity<?> checkAndHandleStock(Map<Integer, Integer> ingredientTotals, List<BasketItem> basketItems, Integer userId) {
+        List<Map<String, Object>> insufficientStock;
+        try {
+            insufficientStock = checkIngredientStock(ingredientTotals);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
+        }
+
+        if (!insufficientStock.isEmpty()) {
+            Set<Integer> blockedRecipeIds = getBlockedRecipeIds(basketItems, insufficientStock);
+            if (userId != null) {
+                for (Integer id : blockedRecipeIds) {
+                    basketRepository.deleteByUserIdAndRecipeId(userId, id);
+                }
+            }
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of("error", "Some recipes are not available", "blockedRecipesIds", blockedRecipeIds)
+            );
+        }
+        return null;
+    }
+    private ResponseEntity<?> placeIngredientOrders(Map<Integer, Integer> ingredientTotals, User user, List<OrderRequest> successfulOrders) {
+        List<String> errors = Collections.synchronizedList(new ArrayList<>());
+        ExecutorService executor = Executors.newFixedThreadPool(10);
+        List<CompletableFuture<Boolean>> futures = new ArrayList<>();
+
+        for (Map.Entry<Integer, Integer> entry : ingredientTotals.entrySet()) {
+            int ingredientId = entry.getKey();
+            int amount = entry.getValue();
+
+            CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    int supplierId = ingredientRepository.findById(ingredientId)
+                            .map(Ingredient::getSupplierId).filter(Objects::nonNull).orElse(10);
+
+                    String supplierUrl = supplierRepository.findById(supplierId)
+                            .orElseThrow(() -> new RuntimeException("Supplier not found")).getUrl();
+
+                    OrderRequest orderRequest = new OrderRequest();
+                    orderRequest.setIngredientId(
+                            ingredientRepository.findById(ingredientId)
+                                    .orElseThrow(() -> new RuntimeException("Ingredient not found"))
+                                    .getIngredientId_S()
+                    );
+                    orderRequest.setAmount(amount);
+                    orderRequest.setUser(user);
+
+                    HttpEntity<OrderRequest> requestEntity = new HttpEntity<>(orderRequest);
+                    ResponseEntity<String> response = restTemplate.postForEntity(
+                            supplierUrl + "/order/", requestEntity, String.class);
+
+                    if (response.getStatusCode().is2xxSuccessful()) {
+                        synchronized (successfulOrders) {
+                            successfulOrders.add(orderRequest);
+                        }
+                        return true;
+                    } else {
+                        errors.add("Order failed for ingredient " + ingredientId + ": " + response.getBody());
+                        return false;
+                    }
+                } catch (Exception e) {
+                    errors.add("Error placing order for ingredient " + ingredientId + ": " + e.getMessage());
+                    return false;
+                }
+            }, executor);
+            futures.add(future);
+        }
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        executor.shutdown();
+
+        if (futures.stream().anyMatch(f -> !f.join())) {
+            revertSuccessfulOrders(successfulOrders);
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                    Map.of("error", "Some ingredient orders failed", "details", errors)
+            );
+        }
+
+        return null;
+    }
+    private void saveOrder(int userId, List<BasketItem> basketItems) {
+        Order order = new Order();
+        order.setUserId(userId);
+        order.setTimestamp(LocalDateTime.now());
+
+        List<OrderRecipe> orderRecipes = new ArrayList<>();
+        for (BasketItem basketItem : basketItems) {
+            Recipe recipe = recipeRepository.getById(basketItem.getRecipeId());
+
+            OrderRecipe or = new OrderRecipe();
+            or.setOrder(order);
+            or.setRecipe(recipe);
+            or.setQuantity(basketItem.getQuantity());
+
+            orderRecipes.add(or);
+        }
+
+        order.setOrderRecipes(orderRecipes);
+        orderRepository.save(order);
     }
     private Set<Integer> getBlockedRecipeIds(List<BasketItem> basketItemItems, List<Map<String, Object>> insufficientStock) {
         Set<Integer> blockedRecipeIds = new HashSet<>();
