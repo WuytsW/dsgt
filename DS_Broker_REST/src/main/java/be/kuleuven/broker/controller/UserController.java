@@ -79,7 +79,11 @@ public class UserController {
 
         String hashedPassword = passwordEncoder.encode(user.getPassword());
         user.setPassword(hashedPassword);
+        if(user.getIsAdmin() == null) {
+            user.setIsAdmin(false);
+        }
         User savedUser = userRepository.save(user);
+
         return ResponseEntity.ok(savedUser);
     }
 
