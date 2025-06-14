@@ -12,9 +12,11 @@ public class Ingredient {
 
     private String ingredient;
 
+    @Column(name = "supplierID")
     private Integer supplierId;
 
-    private Integer ingredientId_S;
+    @Column(name = "ingredientId")
+    private Integer ingredientId;
 
 
     public Ingredient() {}
@@ -35,10 +37,10 @@ public class Ingredient {
     public void setSupplierId(Integer suplierid) {
         this.supplierId = suplierid;
     }
-    public Integer getIngredientId_S() {
-        return ingredientId_S;
+    public Integer getIngredientId() {
+        return ingredientId;
     }
-    public void setIngredientId_S(Integer ingredientId_S) {
-        this.ingredientId_S = ingredientId_S;
+    public void setIngredientId(Integer ingredientId) {
+        this.ingredientId = ingredientId;
     }
 }

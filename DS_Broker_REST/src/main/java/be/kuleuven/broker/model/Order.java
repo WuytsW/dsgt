@@ -15,6 +15,7 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(name = "userID")
     private Integer userId;
 
     private LocalDateTime timestamp;

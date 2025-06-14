@@ -186,7 +186,8 @@ public class OrderController {
 
                     Integer supplierIngredientId = ingredientRepository.findById(ingredientId)
                             .orElseThrow(() -> new RuntimeException("Ingredient not found for ID: " + ingredientId))
-                            .getIngredientId_S();
+                            .getIngredientId();
+
 
                     ResponseEntity<Map> response = restTemplate.getForEntity(
                             supplierUrl + "/stock/" + supplierIngredientId, Map.class);
@@ -256,7 +257,7 @@ public class OrderController {
                     orderRequest.setIngredientId(
                             ingredientRepository.findById(ingredientId)
                                     .orElseThrow(() -> new RuntimeException("Ingredient not found"))
-                                    .getIngredientId_S()
+                                    .getIngredientId()
                     );
                     orderRequest.setAmount(amount);
                     orderRequest.setUser(user);
