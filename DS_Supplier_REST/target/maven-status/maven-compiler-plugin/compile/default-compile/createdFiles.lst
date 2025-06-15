@@ -1,7 +1,0 @@
-be\kuleuven\foodrestservice\model\Address.class
-be\kuleuven\foodrestservice\model\User.class
-be\kuleuven\foodrestservice\FoodRestServiceApplication.class
-be\kuleuven\foodrestservice\model\OrderRequest.class
-be\kuleuven\foodrestservice\controllers\Controller.class
-be\kuleuven\foodrestservice\model\Ingredient.class
-be\kuleuven\foodrestservice\repository\IngredientRepository.class

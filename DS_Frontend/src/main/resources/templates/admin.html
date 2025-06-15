@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Orders</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<div class="basket-container">
+    <h2>All Orders</h2>
+
+    <div th:each="order : ${orders}" class="order-result-container">
+        <h3>Order [[${order.id}]]</h3>
+        <p>User ID: <strong th:text="${order.userId}"></strong></p>
+        <p>Timestamp: <strong th:text="${order.timestamp}"></strong></p>
+        <ul th:if="${order.orderRecipes != null}" class="order-list">
+            <li th:each="orderR : ${order.orderRecipes}">
+                <span th:text="${orderR.quantity}"></span> x
+                <span th:text="${orderR.recipe.recipe}"></span>,
+
+            </li>
+        </ul>
+
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Order Result</title>
+    <link rel="icon" type="image/png" th:href="@{/images/favicon.png}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+
+<div class="order-result-container">
+    <h2>Order Complete</h2>
+    <p>The order:</p>
+    <pre th:text="${mealsJson}">No data</pre>
+    <p><a href="/">⬅ Back to Home</a></p>
+</div>
+</body>
+
+</html>

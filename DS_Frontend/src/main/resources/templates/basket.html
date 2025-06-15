@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Your Basket</title>
+    <link rel="icon" type="image/png" th:href="@{/images/favicon.png}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<div class="basket-container">
+    <div th:if="${msg}" class="stock-warning">
+        <p th:text="${msg}"></p>
+        <ul th:if="${removedRecipes}">
+            <li th:each="r : ${removedRecipes}" th:text="${r}"></li>
+        </ul>
+    </div>
+
+    <h2>Your Basket</h2>
+    <ul class="basket-list">
+        <li th:each="item : ${basket}">
+            <div class="recipe-header" onclick="toggleIngredients(this)">
+                <h3 th:text="${item.recipe.recipe}"></h3>
+                <span class="arrow">&#9654;</span>
+            </div>
+
+            <p>Quantity: <span th:text="${item.quantity}"></span></p>
+
+            <form th:action="@{/remove-recipe-from-basket}" method="post" class="remove-form">
+                <input type="hidden" name="recipeId" th:value="${item.recipe.id}" />
+                <button type="submit" class="remove-btn">✖ Remove</button>
+            </form>
+
+            <ul class="ingredient-list" style="display: none;">
+                <li th:each="ing : ${item.recipe.ingredients}" th:text="${ing.getIngredient()}"></li>
+            </ul>
+        </li>
+    </ul>
+
+    <form th:action="@{/check}" method="post" class="basket-order-form">
+        <button type="submit">Check availability and go to payment</button>
+    </form>
+
+    <p><a href="/">⬅ Back to Recipes</a></p>
+</div>
+
+<script>
+    function toggleIngredients(header) {
+        const arrow = header.querySelector(".arrow");
+        const list = header.nextElementSibling.nextElementSibling.nextElementSibling;
+        const isVisible = list.style.display === "block";
+
+        list.style.display = isVisible ? "none" : "block";
+        arrow.innerHTML = isVisible ? "&#9654;" : "&#9660;";
+    }
+</script>
+
+</body>
+</html>
+

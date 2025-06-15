@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Easy meal</title>
+    <link rel="icon" type="image/png" th:href="@{/images/favicon.png}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+
+<ul class="recipe-grid">
+    <li th:each="recipe : ${recipes}">
+        <a th:href="@{'/recipe/' + ${recipe.id}}">
+            <img th:src="${recipe.image}" alt="Meal image"/>
+        </a>
+        <a class="name" th:href="@{'/recipe/' + ${recipe.id}}" th:text="${recipe.recipe}"></a>
+    </li>
+</ul>
+
+</body>
+</html>

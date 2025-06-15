@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Profile</title>
+    <link rel="icon" type="image/png" th:href="@{/images/favicon.png}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+
+<div class="profile-container">
+    <p>Welcome, <strong th:text="${session.username}"></strong>!</p>
+    <a href="/">⬅ Back to Recipes</a><br>
+    <a href="/logout">Logout</a>
+</div>
+</body>
+
+</html>
