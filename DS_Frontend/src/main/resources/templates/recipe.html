@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:text="${recipe.recipe}">Recipe</title>
+    <link rel="icon" type="image/png" th:href="@{/images/favicon.png}">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<div class="recipe-container">
+    <h2 th:text="${recipe.recipe}"></h2>
+    <p th:text="${recipe.description}"></p>
+
+    <form th:action="@{/add-recipe-to-basket}" method="post">
+        <input type="hidden" name="recipeId" th:value="${recipe.id}" />
+        <label for="quantity">Quantity:</label>
+        <input type="number" id="quantity" name="quantity" min="1" value="1" required />
+        <button type="submit">🛒 Add to Basket</button>
+    </form>
+
+    <img th:src="${recipe.image}" alt="Recipe Image" class="recipe-image"/>
+    <h2>Ingredients:</h2>
+    <div th:if="${recipe.ingredients != null and !recipe.ingredients.isEmpty()}">
+    <ul>
+            <li th:each="ingredient : ${recipe.ingredients}" th:text="${ingredient.ingredient}"></li>
+        </ul>
+    </div>
+    <p th:if="${recipe.ingredients == null or recipe.ingredients.isEmpty()}">No ingredients listed.</p>
+
+</div>
+</body>
+
+</html>

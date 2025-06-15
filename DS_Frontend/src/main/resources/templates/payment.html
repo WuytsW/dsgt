@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<div th:replace="~{fragments/header :: header}"></div>
+
+<div class="auth-container">
+    <h2>Confirm Payment</h2>
+
+    <div th:if="${paid}">
+        <p class="success-msg">✅ Payment successful!</p>
+        <form action="/order" method="post">
+            <button type="submit">🧾 Place Order</button>
+        </form>
+    </div>
+
+    <div th:if="${(paid == null or !paid) and session.user != null}">
+    <p>Please confirm your order and proceed to payment.</p>
+        <form action="/pay" method="post">
+            <button type="submit">💳 Pay</button>
+        </form>
+    </div>
+
+    <div th:if="${session.user == null and (paid == null or !paid)}">
+    <p>Please provide your address and proceed to payment.</p>
+        <form action="/pay" method="post">
+            <label>Email:</label>
+            <input type="text" name="email" required />
+
+            <h3>Address</h3>
+            <label>Country:</label>
+            <input type="text" name="country" required />
+            <label>Street:</label>
+            <input type="text" name="street" required />
+            <label>Street Number:</label>
+            <input type="text" name="streetNumber" required />
+            <label>Postcode:</label>
+            <input type="text" name="postcode" required />
+
+            <button type="submit">💳 Pay as Guest</button>
+        </form>
+    </div>
+
+    <p><a href="/basket">⬅ Back to Basket</a></p>
+</div>
+
+
+</body>
+</html>

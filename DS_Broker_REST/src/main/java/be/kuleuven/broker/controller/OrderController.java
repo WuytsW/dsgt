@@ -98,10 +98,12 @@ public class OrderController {
         ResponseEntity<?> orderResponse = placeIngredientOrders(ingredientTotals, user, successfulOrders);
         if (orderResponse != null) return orderResponse;
 
+        Map<String, Map<String, Integer>> orderSummary = getOrderSummaryPerSupplier(basketItems);
         basketRepository.deleteAll(basketItems);
         saveOrder(userId, basketItems);
 
-        return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
+        return ResponseEntity.ok(orderSummary);
+        //return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
 
     @PostMapping("/order-guest")
@@ -117,9 +119,11 @@ public class OrderController {
         ResponseEntity<?> orderResponse = placeIngredientOrders(ingredientTotals, user, successfulOrders);
         if (orderResponse != null) return orderResponse;
 
+        Map<String, Map<String, Integer>> orderSummary = getOrderSummaryPerSupplier(basketItems);
         saveOrder(0, basketItems);
 
-        return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
+        return ResponseEntity.ok(orderSummary);
+        //return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
 
 
@@ -333,4 +337,25 @@ public class OrderController {
 
         return blockedRecipeIds;
     }
+    public Map<String, Map<String, Integer>> getOrderSummaryPerSupplier(List<BasketItem> basket) {
+        Map<String, Map<String, Integer>> supplierMap = new HashMap<>();
+
+        for (BasketItem item : basket) {
+            Optional<Recipe> recipe = recipeRepository.findById(item.getRecipeId());
+            int quantity = item.getQuantity();
+
+            for (Ingredient ingredient : recipe.get().getIngredients()) {
+                String supplier = supplierRepository.findById(ingredient.getSupplierId()).get().getName();
+                String ingredientName = ingredient.getIngredient();
+                int amount = quantity; // quantity scaled by user input
+
+                supplierMap
+                        .computeIfAbsent(supplier, k -> new HashMap<>())
+                        .merge(ingredientName, amount, Integer::sum);
+            }
+        }
+
+        return supplierMap;
+    }
+
 }
