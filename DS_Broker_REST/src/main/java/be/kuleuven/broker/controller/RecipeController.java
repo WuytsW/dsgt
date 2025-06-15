@@ -20,7 +20,6 @@ public class RecipeController {
         this.recipeRepository = recipeRepository;
     }
 
-
     @GetMapping
     public Collection<Recipe> getAllRecipes() {
         return recipeRepository.findAll();

@@ -25,9 +25,7 @@ public class User {
     @JoinColumn(name = "address_id", referencedColumnName = "id")
     private Address address;
 
-
     public User() {}
-
 
     public Integer getId() { return id; }
     public void setId(Integer id) { this.id = id; }

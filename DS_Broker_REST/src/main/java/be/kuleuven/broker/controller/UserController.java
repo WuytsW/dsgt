@@ -23,7 +23,6 @@ public class UserController {
         this.userRepository = userRepository;
     }
 
-
     @GetMapping
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -38,12 +37,10 @@ public class UserController {
         return ResponseEntity.ok(userOpt.get());
     }
 
-
     @GetMapping("/exists/{username}")
     public ResponseEntity<Boolean> checkUserExists(@PathVariable String username) {
         return ResponseEntity.ok(userRepository.existsByUsername(username));
     }
-
 
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody User loginAttempt) {
@@ -67,7 +64,6 @@ public class UserController {
         return ResponseEntity.ok(user);
     }
 
-
     @PostMapping("/register")
     public ResponseEntity<User> register(@RequestBody User user) {
         if (userRepository.existsByUsername(user.getUsername())) {
@@ -86,7 +82,6 @@ public class UserController {
 
         return ResponseEntity.ok(savedUser);
     }
-
 
     @DeleteMapping("/{username}")
     public ResponseEntity<Void> deleteUser(@PathVariable String username) {

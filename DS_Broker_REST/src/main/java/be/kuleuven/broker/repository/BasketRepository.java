@@ -20,7 +20,6 @@ public interface BasketRepository extends JpaRepository<BasketItem, Integer> {
     @Modifying
     @Query("DELETE FROM BasketItem b WHERE b.userId = :userId AND b.recipeId = :recipeId")
     void deleteByUserIdAndRecipeId(@Param("userId") Integer userId, @Param("recipeId") Integer recipeId);
-
 }
 
 

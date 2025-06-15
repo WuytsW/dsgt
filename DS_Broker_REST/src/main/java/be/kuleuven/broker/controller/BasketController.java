@@ -22,7 +22,6 @@ public class BasketController {
         return basketRepository.findByUserId(userId);
     }
 
-
     @PostMapping("/{userId}/add")
     public BasketItem addToBasket(@PathVariable int userId, @RequestBody BasketItem incoming) {
         BasketItem existing = basketRepository.findByUserIdAndRecipeId(userId, incoming.getRecipeId());
@@ -54,7 +53,6 @@ public class BasketController {
 
         return ResponseEntity.ok().build();
     }
-    
 
     @DeleteMapping("/{userId}")
     public void deleteBasketByUserId(@PathVariable int userId) {

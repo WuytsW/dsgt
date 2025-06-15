@@ -2,14 +2,11 @@ package be.kuleuven.broker.controller;
 
 import be.kuleuven.broker.model.*;
 import be.kuleuven.broker.repository.*;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -40,7 +37,6 @@ public class OrderController {
         List<BasketItem> basketItems = basketRepository.findByUserId(userId);
         Map<Integer, Integer> ingredientTotals = calculateIngredientTotals(basketItems);
 
-        // Check stock
         List<Map<String, Object>> insufficientStock;
         try {
             insufficientStock = checkIngredientStock(ingredientTotals);
@@ -98,12 +94,11 @@ public class OrderController {
         ResponseEntity<?> orderResponse = placeIngredientOrders(ingredientTotals, user, successfulOrders);
         if (orderResponse != null) return orderResponse;
 
-        Map<String, Map<String, Integer>> orderSummary = getOrderSummaryPerSupplier(basketItems);
+        Map<String, Map<String, Integer>> orderSummary = getOrderSummary(basketItems);
         basketRepository.deleteAll(basketItems);
         saveOrder(userId, basketItems);
 
         return ResponseEntity.ok(orderSummary);
-        //return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
 
     @PostMapping("/order-guest")
@@ -119,11 +114,10 @@ public class OrderController {
         ResponseEntity<?> orderResponse = placeIngredientOrders(ingredientTotals, user, successfulOrders);
         if (orderResponse != null) return orderResponse;
 
-        Map<String, Map<String, Integer>> orderSummary = getOrderSummaryPerSupplier(basketItems);
+        Map<String, Map<String, Integer>> orderSummary = getOrderSummary(basketItems);
         saveOrder(0, basketItems);
 
         return ResponseEntity.ok(orderSummary);
-        //return ResponseEntity.ok(Map.of("message", "All ingredient orders placed successfully"));
     }
 
 
@@ -337,7 +331,7 @@ public class OrderController {
 
         return blockedRecipeIds;
     }
-    public Map<String, Map<String, Integer>> getOrderSummaryPerSupplier(List<BasketItem> basket) {
+    public Map<String, Map<String, Integer>> getOrderSummary(List<BasketItem> basket) {
         Map<String, Map<String, Integer>> supplierMap = new HashMap<>();
 
         for (BasketItem item : basket) {
@@ -349,13 +343,10 @@ public class OrderController {
                 String ingredientName = ingredient.getIngredient();
                 int amount = quantity; // quantity scaled by user input
 
-                supplierMap
-                        .computeIfAbsent(supplier, k -> new HashMap<>())
-                        .merge(ingredientName, amount, Integer::sum);
+                supplierMap.computeIfAbsent(supplier, k -> new HashMap<>()).merge(ingredientName, amount, Integer::sum);
             }
         }
 
         return supplierMap;
     }
-
 }

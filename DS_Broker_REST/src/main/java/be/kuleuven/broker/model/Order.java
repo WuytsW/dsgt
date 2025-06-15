@@ -24,7 +24,6 @@ public class Order {
     @JsonManagedReference
     private List<OrderRecipe> orderRecipes = new ArrayList<>();
 
-
     public Integer getUserId() {
         return userId;
     }

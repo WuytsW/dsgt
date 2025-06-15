@@ -5,6 +5,7 @@ import  javax.persistence.*;
 
 @Entity
 public class Address {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
@@ -14,6 +15,8 @@ public class Address {
     private String streetNumber;
     private String postcode;
 
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
     public String getCountry() {
         return country;
     }
