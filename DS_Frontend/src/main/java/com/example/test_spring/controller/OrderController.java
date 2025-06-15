@@ -121,9 +121,7 @@ public class OrderController {
         return "redirect:/basket";
     }
 
-    private String GuestConflict(HttpClientErrorException.Conflict e,
-                                 RedirectAttributes redirectAttributes,
-                                 HttpSession session) throws JsonProcessingException {
+    private String GuestConflict(HttpClientErrorException.Conflict e, RedirectAttributes redirectAttributes, HttpSession session) throws JsonProcessingException {
 
         JsonNode root = objectMapper.readTree(e.getResponseBodyAsString());
 
@@ -153,10 +151,6 @@ public class OrderController {
 
         return "redirect:/basket";
     }
-
-
-
-
 
 
     @GetMapping("/payment")
@@ -197,7 +191,6 @@ public class OrderController {
     }
 
 
-
     @SuppressWarnings("unchecked")
     private List<BasketItem> getOrCreateBasket(HttpSession session) {
         List<BasketItem> basket = (List<BasketItem>) session.getAttribute("basket");
@@ -207,5 +200,4 @@ public class OrderController {
         }
         return basket;
     }
-
 }

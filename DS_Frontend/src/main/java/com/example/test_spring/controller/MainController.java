@@ -45,7 +45,8 @@ public class MainController {
         try {
             ResponseEntity<Order[]> response = restTemplate.getForEntity(url, Order[].class);
             List<Order> allOrders = List.of(response.getBody());
-            List<Order> sortedOrders = allOrders.stream()
+            List<Order> sortedOrders =
+                    allOrders.stream()
                     .sorted(Comparator.comparing(Order::getTimestamp).reversed())
                     .collect(Collectors.toList());
             model.addAttribute("orders", sortedOrders);

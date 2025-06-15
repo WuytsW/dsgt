@@ -42,7 +42,6 @@ public class BasketController {
         return "basket";
     }
 
-
     @PostMapping("/add-recipe-to-basket")
     public String addRecipeToBasket(@RequestParam int recipeId, @RequestParam int quantity, HttpSession session) {
         Integer userId = (Integer) session.getAttribute("user");
