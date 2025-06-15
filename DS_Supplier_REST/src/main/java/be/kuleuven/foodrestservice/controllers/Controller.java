@@ -84,7 +84,6 @@ public class Controller {
             }
             return ResponseEntity.ok(ingredientsDetailsList);
         } catch (Exception e) {
-            System.err.println("Error querying Cosmos DB for all stock: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to retrieve stock from database."));
@@ -95,15 +94,12 @@ public class Controller {
     @GetMapping("/stock/{ingredientId}")
     public ResponseEntity<?> getStock(@PathVariable Integer ingredientId) {
         if (this.container == null) {
-            System.err.println("/stock/" + ingredientId + " endpoint called but Cosmos DB container is not initialized.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Cosmos DB container not initialized. Check application logs."));
         }
-
-        // The ingredientId in Cosmos DB is a string, so we query it as such.
+        // ingredientID in cosmos db is a string, so convert it
         String ingredientIdString = String.valueOf(ingredientId);
 
-        // Parameterized query to prevent SQL injection vulnerabilities and handle data types correctly.
         String sqlQuery = "SELECT VALUE c.stock FROM c WHERE c.ingredientId = @ingredientId";
         SqlParameter param = new SqlParameter("@ingredientId", ingredientIdString);
         SqlQuerySpec querySpec = new SqlQuerySpec(sqlQuery, Collections.singletonList(param));
@@ -111,9 +107,6 @@ public class Controller {
         CosmosQueryRequestOptions queryOptions = new CosmosQueryRequestOptions();
 
         try {
-            System.out.println("Querying Cosmos DB for stock of ingredientId: " + ingredientIdString);
-            // We expect the stock to be a String, as per your item structure.
-            // The query "SELECT VALUE c.stock" will return a list of stock values directly.
             CosmosPagedIterable<String> items = container.queryItems(querySpec, queryOptions, String.class);
 
             String stockValueString = null;
@@ -123,22 +116,17 @@ public class Controller {
 
             if (stockValueString != null) {
                 try {
-                    // Parse the stock string to an integer
                     Integer stockValue = Integer.parseInt(stockValueString);
-                    System.out.println("Found stock for ingredientId " + ingredientIdString + ": " + stockValue);
                     return ResponseEntity.ok(Map.of("stock", stockValue));
                 } catch (NumberFormatException nfe) {
-                    System.err.println("Error parsing stock value '" + stockValueString + "' to integer for ingredientId " + ingredientIdString + ": " + nfe.getMessage());
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                             .body(Map.of("error", "Stock data for ingredient " + ingredientIdString + " is corrupted (not a number)."));
                 }
             } else {
-                System.out.println("Ingredient with ID " + ingredientIdString + " not found in Cosmos DB.");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Ingredient with ID " + ingredientIdString + " not found."));
             }
         } catch (Exception e) {
-            System.err.println("Error querying Cosmos DB for stock of ingredientId " + ingredientIdString + ": " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to retrieve stock for ingredient " + ingredientIdString + " from database."));
@@ -148,7 +136,6 @@ public class Controller {
     @PostMapping("/order")
     public ResponseEntity<?> placeOrder(@RequestBody OrderRequest request) {
         if (this.container == null) {
-            System.err.println("/order endpoint called but Cosmos DB container is not initialized.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Cosmos DB container not initialized. Check application logs."));
         }
@@ -172,7 +159,7 @@ public class Controller {
         SqlQuerySpec querySpec = new SqlQuerySpec(sqlQuery, Collections.singletonList(param));
 
         CosmosQueryRequestOptions queryOptions = new CosmosQueryRequestOptions();
-        // Set partition key for efficient query if /ingredientId is the partition key
+        // set partition key for efficient query
         queryOptions.setPartitionKey(new PartitionKey(ingredientIdString));
 
         try {
@@ -213,11 +200,10 @@ public class Controller {
             // replace the item in Cosmos DB
             CosmosItemResponse<Map> response = container.replaceItem(
                     itemToUpdate,
-                    documentId, // The ID of the item to replace
-                    new PartitionKey(ingredientIdString), // The partition key value of the item
-                    new CosmosItemRequestOptions()); // Default options
+                    documentId,
+                    new PartitionKey(ingredientIdString), //
+                    new CosmosItemRequestOptions());
 
-            // Check response status if needed, though SDK usually throws exception on failure
             if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
                 User user = request.getUser();
                 Address address = user.getAddress();
@@ -237,14 +223,12 @@ public class Controller {
                         "remainingStock", newStock
                 ));
             } else {
-                // This case might be rare if exceptions are thrown for non-successful updates
                 System.err.println("Failed to update stock for ingredientId " + ingredientIdString + ". Status code: " + response.getStatusCode());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "Failed to update stock in database. Status: " + response.getStatusCode()));
             }
 
         } catch (Exception e) {
-            System.err.println("Error processing order for ingredientId " + ingredientIdString + ": " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to process order for ingredient " + ingredientIdString + "."));
@@ -255,7 +239,6 @@ public class Controller {
     @PostMapping("/revert")
     public ResponseEntity<?> revertOrder(@RequestBody OrderRequest request) {
         if (this.container == null) {
-            System.err.println("/revert endpoint called but Cosmos DB container is not initialized.");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Cosmos DB container not initialized. Check application logs."));
         }
@@ -268,13 +251,11 @@ public class Controller {
         String ingredientIdString = String.valueOf(requestedIngredientId);
         int amountToRevert = request.getAmount();
 
-        // Query to get the full item
         String sqlQuery = "SELECT * FROM c WHERE c.ingredientId = @ingredientId";
         SqlParameter param = new SqlParameter("@ingredientId", ingredientIdString);
         SqlQuerySpec querySpec = new SqlQuerySpec(sqlQuery, Collections.singletonList(param));
 
         CosmosQueryRequestOptions queryOptions = new CosmosQueryRequestOptions();
-        // set partition key for efficiency
         queryOptions.setPartitionKey(new PartitionKey(ingredientIdString));
 
         try {
@@ -285,7 +266,6 @@ public class Controller {
             try {
                 itemToUpdate = items.iterator().next(); // Get the first (and supposedly only) item
             } catch (NoSuchElementException nsee) {
-                System.out.println("Ingredient with ID " + ingredientIdString + " not found in Cosmos DB for revert.");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "Ingredient with ID " + ingredientIdString + " not found."));
             }
@@ -294,7 +274,6 @@ public class Controller {
             Object stockObject = itemToUpdate.get("stock");
 
             if (stockObject == null) {
-                System.err.println("Stock data missing for ingredientId " + ingredientIdString);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "Stock data for ingredient " + ingredientIdString + " is missing or corrupted."));
             }
@@ -305,7 +284,6 @@ public class Controller {
             try {
                 currentStock = Integer.parseInt(stockString);
             } catch (NumberFormatException nfe) {
-                System.err.println("Error parsing stock value '" + stockString + "' to integer for ingredientId " + ingredientIdString + ": " + nfe.getMessage());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "Stock data for ingredient " + ingredientIdString + " is corrupted (not a number)."));
             }
@@ -317,25 +295,22 @@ public class Controller {
             // Replace the item in Cosmos DB
             CosmosItemResponse<Map> response = container.replaceItem(
                     itemToUpdate,
-                    documentId, // The ID of the item to replace
-                    new PartitionKey(ingredientIdString), // The partition key value of the item
-                    new CosmosItemRequestOptions()); // Default options
+                    documentId,
+                    new PartitionKey(ingredientIdString),
+                    new CosmosItemRequestOptions());
 
             if (response.getStatusCode() >= 200 && response.getStatusCode() < 300) {
-                System.out.println("Revert processed for ingredientId " + ingredientIdString + ". Stock updated to " + newStock);
                 return ResponseEntity.ok(Map.of(
                         "message", "Revert processed successfully and stock updated",
                         "ingredientId", requestedIngredientId,
                         "remainingStock", newStock
                 ));
             } else {
-                System.err.println("Failed to update stock during revert for ingredientId " + ingredientIdString + ". Status code: " + response.getStatusCode());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", "Failed to update stock in database during revert. Status: " + response.getStatusCode()));
             }
 
         } catch (Exception e) {
-            System.err.println("Error processing revert for ingredientId " + ingredientIdString + ": " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to process revert for ingredient " + ingredientIdString + "."));
